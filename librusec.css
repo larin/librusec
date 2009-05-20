@@ -17,13 +17,10 @@ a.genre {
   font-size: 120%; 
 }
 
-a.sequence, H6 {
+h8 {
   color:#00008B; 
   margin-top: 4pt;
-}
-
-a.readed {
-  color:#9999ff;
+  font-size: 120%; 
 }
 
 .size {

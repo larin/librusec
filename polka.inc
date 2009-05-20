@@ -32,11 +32,14 @@ function libPolka() {
           Update ('libpolka',"Text = '$txt', Flag='$f'", "BookId = $b AND Userid = $u");
         else 
           Insert ('libpolka', 'BookId, UserId, Text, Flag', "$b, $u, '$txt', '$f'");
+        libsettag(polka);  
       }
     break;
     case 'del':
-      if (($b = 1*arg(2)) && $u) 
+      if (($b = 1*arg(2)) && $u) {
         db_query("DELETE FROM libpolka WHERE UserId = $u AND BookId = $b");
+        libsettag(polka);  
+      }  
     break;
     case 'delrd':
       if (($b = 1*arg(2)) && $u) 

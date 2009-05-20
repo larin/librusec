@@ -15,13 +15,14 @@ function libSaveLog($b, $u) {
 }
 
 function libBook() {
-  Global $user, $ShowEN; 
+  Global $user, $ShowEN, $ttt, $jj; 
+  $ttt[$jj++] = microtime(1);
   $bo = addslashes(arg(1));
   if ($bo > 0 && $bo == 1*$bo) {
     $b = Sel ("BookId FROM libbook WHERE BookId = %d", $bo);
   } elseif ($bo) {
-    if (!Sel("BookId FROM libbook WHERE Title LIKE '$bo%' AND NOT (Deleted&1) LIMIT 1"))
-      $bo = iconv ("windows-1251", "UTF-8", $bo);
+//    if (!Sel("BookId FROM libbook WHERE Title LIKE '$bo%' AND NOT (Deleted&1) LIMIT 1"))
+//      $bo = iconv ("windows-1251", "UTF-8", $bo);
     $sth = SELECT("BookId FROM libbook WHERE Title LIKE '$bo%' AND NOT (Deleted&1)");
     for ($n = 0; $bb = db_result($sth); $n++) $r .= '<li>'.bl($b=$bb).' - '.avl(Sel("AvtorId FROM libavtor WHERE BookId = $bb LIMIT 1"));
   }
@@ -33,7 +34,6 @@ function libBook() {
   if (!$b) return libList('b', addslashes(arg(1)));
   
   if (!$ShowEN && Sel("Lang FROM libbook WHERE BookId = $b") != 'ru') return 'Что-то нерусское. Только для избранных пользователей.';
-  
   $book = S("* FROM libbook WHERE BookId = $b");
   if (Sel("block FROM libblocked WHERE BookId = $b")) $book->block = 1;
   set_title($tit = $book->Title." ($book->FileType)");
@@ -50,19 +50,9 @@ var topadvert_params_array;
 if( topadvert_params_array == null ){
 	topadvert_params_array = new Array();
 }
-// параметры запроса (передаются на сервер)
 var topadvert_params = {
-	feed_id: 2247, // ID рекламного блока в системе Topadvert
-	format: 2,
-	yml: 1,
-	// limit: 10, // Количество товаров
-	// is_image: 0, // 0 - все товары, 1 - только товары с картинками
-	// is_available: 0, // 0 - все товары, 1 - только товары в наличие
-	pattern_id: 67, // ID шаблона
-	author: \"$aname\", // Автор 
-	name: \"$book->Title\" // Название
+ feed_id: 2247, format: 2, yml: 1, pattern_id: 67, author: \"$aname\", name: \"$book->Title\" 
 };
-// параметры (не передаются на сервер)
 var topadvert_pattern_params = {
 	div_id: 'topadvert_' + Math.round(Math.random()*100000),
 	ref_id: 1668
@@ -90,6 +80,7 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
     case 'rtf':
     case 'pdf':
     case 'pdb':
+    case 'epub':
       return libDownloadBook($b, arg(2));
   } 
 
@@ -106,6 +97,7 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
   }    
 
   $r .= Undellink($b);
+  $ttt[$jj++] = microtime(1);
   if (user_access('библиотекарь')) {
     if ($book->block) $block = " &nbsp; <a href=/b/$b/block/0>(разблокировать)</a>";
     else $block = " &nbsp; <a href=/b/$b/block/1>(заблокировать)</a>";
@@ -117,16 +109,21 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
   $sth = SELECT ("TranslatorId FROM libtranslator where BookId = $b");
   for ($kk = 0;$a1=dbf($sth); $kk++) {
     if (!$kk) $r .= '(перевод:';
+    else $r .= ',';
     $r .= ' '.avl($a1->TranslatorId);
-    if (!$kk) $r .= ')';
   }  
+  if ($kk) $r .= ')';
   $wst = libWST($b);
   $n = $book->N;
-  $n = Sel ("SUM(N) FROM libstat WHERE $wst") + Sel("SUM(1) FROM liblog WHERE $wst");
-  if ($n != $book->N && $n > 0) Update (libbook, "N=$n", "BookId=$b");
-  $r .= DoLibRow($b,'sequence nolink genre nobreak');
+  $ttt[$jj++] = microtime(1);
+  if (LA() < 0.5) {
+    $n = Sel ("SUM(N) FROM libstat WHERE $wst") + Sel("SUM(1) FROM liblog WHERE $wst");
+    if ($n != $book->N && $n > 0) Update (libbook, "N=$n", "BookId=$b");
+  }  
+  $ttt[$jj++] = microtime(1);
+  $r .= DoLibRow($b, 'sequencen nolink genre nobreak seltype notrans');
+  $ttt[$jj++] = microtime(1);
   if ($book->block) $r .= " <img src=/img/zamok.gif border=0 alt='Заблокировано'>";
-  if ($book->FileType == 'fb2') $r .= ' '.libSelectFileType();   
   if ($book->Year) $r .= " &nbsp; издание $book->Year г. ";
   if (libcanedit($b)) $r .= " &nbsp; <a href=/b/$b/edit>(исправить)</a> $block";
   $r .= "<br>";
@@ -141,14 +138,16 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
     $host = 'http://'.$_SERVER['HTTP_HOST'];
     $img = preg_replace('/^\//','',$a1->Cover);
     if (!$img) $img = $a1->Cover;
-    if (!file_exists($img)) $img = "i/".($b%100)."/$b/$img";
-    if (file_exists($img)) {
-      $isize = getimagesize($img); 
-      $imgf = '[img]'."$host/$img".'[/img]';
-      $imgb = "&lt;img border=0 align=left style='padding: 9px;' src=$host/$img&gt;";
-      if ($isize > 300) $img = "<img align=left style='padding: 9px;' width=300 src=/$img>"; 
-      else $img = "<img align=left style='padding: 9px;' src=/$img>"; 
-    } else $img = ''; 
+    if ($img) {
+      if (!file_exists($img)) $img = "i/".($b%100)."/$b/$img";
+      if (file_exists($img)) {
+        $isize = getimagesize($img); 
+        if ($isize[0] > 300) $ww = "width=300";
+        $imgf = '[img]'."$host/$img".'[/img]';
+        $imgb = "&lt;img $ww border=0 align=left style='padding: 9px;' src=\"$host/$img\"&gt;";
+        $img = "<img align=left style='padding: 9px;' $ww src=\"/$img\">"; 
+      } else $img = ''; 
+    }  
   }
   $r .= $img."<a href=javascript:show('link1')>(ссылка для форума (BBCode))</a> <a href=javascript:show('link2')>(ссылка для блога (HTML))</a><br>
 <div id=link1 style='position:absolute;left:-4000px'><br><br>".'[url='."$host/b/$b".']<br>[b]'.$tit.'[/b]<br>'.$imgf.'['."/url]<br><br></div>
@@ -174,13 +173,12 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
   else $r .= " <a href=/b/$b/forum>(обсудить на форуме)</a>"; 
   $r .= $complain."<br><BR><br>";
 // советы  
-
   if ($a1 = S("Advise,  NOW() - Time as tm FROM libcache1 WHERE BookId = $b")) {
     $incache = 1;
-    if ($a1->tm < 100000 or LA() > 1) foreach (split (',' , $a1->Advise) as $bi) $advise .= AdRow($bi);
+    if ($a1->tm < 500000 or LA() > 0.5) foreach (split (',' , $a1->Advise) as $bi) $advise .= AdRow($bi);
     else $incache = 2;  
   } 
-  if ($incache != 1 && LA() < 1) {
+  if ($incache != 1 && LA() < 0.5) {
     $sth = SELECT (
     "l2.BookId AS B, count(l2.BookId) as N 
      FROM libreaded as l1 join libreaded as l2 
@@ -195,8 +193,10 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
       if ($incache) Update ('libcache1', "Advise='$ad'","BookId=$b");
       else Insert ('libcache1', "Advise, BookId", "'$ad',$b");
   }
+  $ttt[$jj++] = microtime(1);
   $r .= printallann($b).$toc.$advise."<br><Br><script src=http://odnaknopka.ru/ok2.js></script>";
   $r .= $topadvert1;
+  $ttt[$jj++] = microtime(1);
   return $r;
 }
 
@@ -221,7 +221,7 @@ function printallann($b) {
   if ($u) {
     $ch = Sel ("Flag FROM libpolka WHERE UserId = $u AND BookId = $b") == 'h' ? 'checked' : '';
     $r .= "<form action=/polka/add/$b method=POST><textarea name=text cols=60 rows=7 id=$b onchange=polkasave($b)>".stripslashes(Sel("Text FROM libpolka WHERE UserId = $u AND BookId = $b"))."</textarea>
-    <br><input type=submit value='поставить на полку'>
+    <br><input type=submit value='записать'>
     <input id=h$b type=checkbox $ch onchange=polkasave($b) onBlur=polkasave($b)> спрятать (не показывать среди аннотаций)
     </form><form action=/polka/del/$b><input type=submit value='убрать с полки'></form>\n";
   }
@@ -273,7 +273,12 @@ function libBookEdit($b) {
        
   $r .= "\n<br><b>Прочитать книгу:</b>".DoLibRow($b);
   $askt = urlencode($a1->Title);
-  $r .= "\n<form method=POST action=/b/$b/settitle>Название: <input name=tit value=\"$tit\"> <input type=submit value='Сохранить новое название' $ButtonStyle> <a href=\"/booksearch?m=j&ask=$askt\">Поискать дубли</a> </form>";
+  $tit = check_plain($a1->Title);
+  $tit1 = check_plain($a1->Title1);
+  $r .= "\n<form method=POST action=/b/$b/settitle>
+  Название: <input name=tit value=\"$tit\"> доп. инф.:[<input name=tit1 value=\"$tit1\">] 
+  <input type=submit value='Сохранить новое название' $ButtonStyle></form>
+  <a href=\"/booksearch?m=j&ask=$askt\">Поискать дубли</a>";
   if (user_access('библиотекарь') && $a1->FileType != 'fb2') 
     $r .= " <form method=POST action=/b/$b/edit><input name=FileType value=$a1->FileType><input type=submit value='Сохранить тип'></form>";
   $r .= "\n<form action=/b/$b/addgenre method=post id=genreform><b>Жанры:</b>";
@@ -303,7 +308,8 @@ function libBookEdit($b) {
 
     $s = SELECT("* FROM libseq JOIN libseqname USING(SeqId) WHERE BookId = $b");
     while ($ss = dbf($s)) {       
-      $r .= "<form action=/b/$b/edit/$ss->SeqId><b>Сериал:</b><input size=1 length=2 name=SeqNumb value=$ss->SeqNumb>$ss->SeqName (<a href=/b/$b/delseq/>удалить</a>)</form>";
+      $r .= "<form action=/b/$b/edit/$ss->SeqId><b>Сериал:</b><input size=1 length=2 name=SeqNumb value=$ss->SeqNumb>$ss->SeqName 
+            (<a href=/b/$b/delseq/$ss->SeqId>удалить</a>)</form>";
       $ssnn++;
     } 
     if (!$ssnn) {
@@ -345,6 +351,14 @@ function libBookUnDel($b) {
   return "Книга $b восстановлена.<br>\n<br><a href=/a/$a/edit>Продолжить обработку</a> автора ".avl($a);
 }
 
+function libBookDelAlias($b) {
+  $b2 = 1*arg(3);
+  if ($b && $b2) {
+    LogAction("DELETE FROM libjoinedbooks WHERE BadId = $b AND GoodId = $b2", "Unjoin books $b $b2", 
+              "INSERT INTO libjoinedbooks (GoodId, BadId) VALUES ($b2, $b)", $b2);    
+  }
+  return lgo("/b/$b");
+}
 function libBookJoin($b1) {
   $b2 = arg(3);
   if (!$b2) {
@@ -359,8 +373,8 @@ function libBookJoin($b1) {
 //    if ($b = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b2")) return "Книга $b2 уже объединена с книгой $b";
     if ($b = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b1")) return "Книга $b1 объединена с книгой $b";
     LogAction("INSERT INTO libjoinedbooks (GoodId, BadId) VALUES ($b2, $b1)", "Join books $b2 $b1", "DELETE FROM libjoinedbooks WHERE GoodId = $b2 AND BadId $b1", $b1);
-    cache_clear_all('libwst'.$b1, librusec);
-    cache_clear_all('libwst'.$b2, librusec);
+    libwst($b1, 1);
+    libwst($b2, 1);
     return "Объединение свершилось. Проследуйте на ".bl($b2);
   }  
   if ($a1->Deleted&1) return Undellink($b1); 
@@ -382,7 +396,6 @@ function libBookJoin($b1) {
   }
   $r .= "<tr><td>Язык<td>$a1->Lang<td>$a2->Lang";
   if ($a1->Year || $a2->Year) $r .= "<tr><td>Год издания<td>$a1->Year<td>$a2->Year";
-  if ($a1->Publisher || $a2->Publisher) $r .= "<tr><td>Издатель<td>$a1->Publisher<td>$a2->Publisher"; 
   $r .=  "<tr><td>Жанры<td>".bookgenres($b1)."<td>".bookgenres($b2);
   $r .= "<tr><td>Аннотация<td>".ReadAnnotation($b1)."<td>".ReadAnnotation($b2);
   if ($a1->FileType === 'fb2' || $a2->FileType === 'fb2') {
@@ -395,14 +408,15 @@ function libBookJoin($b1) {
   return $r; 
 }
 
-function libBookDoJoin($b1, $b2 = 0) {
-  if (!is_int($b2)) $b2 = arg(3);
+function libBookDoJoin($b1, $b2) {
+  $b2 *= 1;
+  if (arg(3)) $b2 = 1*arg(3);
   if (!Sel("BookId FROM libbook WHERE BookId = ".(int)$b1)*Sel ("BookId FROM libbook WHERE BookId = ".(int)$b2)) return 'error';
   if ($b = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b2")) return "Книга $b2 уже объединена с книгой $b";
   if ($b = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b1")) return "Книга $b1 объединена с книгой $b";
   LogAction("INSERT INTO libjoinedbooks (GoodId, BadId) VALUES ($b1, $b2)", "Join books $b1 $b2", "DELETE FROM libjoinedbooks WHERE GoodId = $b1 AND BadId = $b2", $b2);
-  libcd('libwst'.$b1);
-  libcd('libwst'.$b2);
+  libwst($b1, 1);
+  libwst($b2, 1);
   
   if (!Sel("SeqId FROM libseq WHERE BookId = $b1")) {
     $sth = SELECT("* FROM libseq WHERE BookId = $b2");
@@ -411,7 +425,7 @@ function libBookDoJoin($b1, $b2 = 0) {
                 "Copy Sequense info from $b2 to $b1", 
                 "DELETE FROM libseq WHERE BookId = $b1 AND SeqId = $ss->SeqId", $b1);
     }
-    libcd('seq'.$b1);
+    libcd('libseq'.$b);          
   }  
   DeleteBook($b2);
   return Undellink($b2);
@@ -522,8 +536,10 @@ function libBookSetFileSize($b) {
 
 function libBookSetTitle($b) {
   $newtit = $_POST['tit'];
-  if ($newtit && $newtit != Sel ("Title FROM libbook WHERE BookId = $b")) 
-    BookSetTitle($b, $newtit);
+  $newtit1 = $_POST['tit1'];
+  $book = new DB;
+  if ($newtit && ($newtit != $book->Title($b) || $newtit1 != $book->Title1($b))) 
+    BookSetTitle($b, $newtit, $newtit1);
   return lgo("b/$b/edit");
 }
 
@@ -670,4 +686,10 @@ function libBookBlock($b, $book) {
     LogAction("DELETE FROM libblocked WHERE BookId = $b", "Unblock book $b", "INSERT INTO libblocked (BookId, block) VALUES ($b, 1)");
     return "Книга ".bl($b)." разблокирована";            
   }  
+}
+
+function libBookValidate($b) {
+  include_once drupal_get_path('module', 'librusec').'/validator.inc';
+  $v = validate("b/$b.fb2");
+  return "Проверка файла $b.fb2: $v->s";
 }

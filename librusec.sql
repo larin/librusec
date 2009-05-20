@@ -96,27 +96,25 @@ CREATE TABLE `libbook` (
   `FileSize` int(10) unsigned NOT NULL default '0',
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP,
   `Title` varchar(254)  NOT NULL default '',
+  `Title1` varchar(254)  NOT NULL default '',
   `Lang` char(2)  NOT NULL default 'ru',
   `FileType` char(4)  NOT NULL default 'fb2',
   `Year` smallint(6) NOT NULL default '0',
-  `Publisher` varchar(99) character set utf8 NOT NULL default '',
   `Deleted` char(1)  NOT NULL default '',
   `Ver` varchar(8) character set utf8 NOT NULL default '',
-  `Id` varchar(40)  NOT NULL default '',
   `FileAuthor` varchar(64) character set utf8 NOT NULL,
   `N` int(10) unsigned NOT NULL default '0',
   `keywords` varchar(255) character set utf8 NOT NULL,
   PRIMARY KEY  (`BookId`),
   UNIQUE KEY `FileName` (`FileName`),
   KEY `Title` (`Title`),
+  KEY `Title1` (`Title1`),
   KEY `Year` (`Year`),
-  KEY `Publisher` (`Publisher`),
   KEY `Deleted` (`Deleted`),
   KEY `SeqId` (`SeqId`),
   KEY `FileType` (`FileType`),
   KEY `Lang` (`Lang`),
   KEY `FileSize` (`FileSize`),
-  KEY `Id` (`Id`),
   KEY `FileAuthor` (`FileAuthor`),
   KEY `N` (`N`),
   FULLTEXT KEY `Title_3` (`Title`)
@@ -306,4 +304,11 @@ CREATE TABLE `libpolkarate` (
   `rate` tinyint(4) NOT NULL,
   PRIMARY KEY  (`Id`,`uid`),
   KEY `rate` (`rate`)
+);
+
+CREATE TABLE `libtopadvert` (
+  `BookId` int(11) NOT NULL,
+  `Time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
+  PRIMARY KEY  (`BookId`),
+  KEY `Time` (`Time`)
 );

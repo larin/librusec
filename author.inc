@@ -6,7 +6,8 @@ include_once drupal_get_path('module', 'librusec').'/polka.inc';
 include_once drupal_get_path('module', 'node').'/node.pages.inc';
 
 function libAvtor() {
-  Global $user;
+  Global $user, $ttt, $_start_time, $jj;
+  $ttt[$jj++] = microtime(1);
   $ua = $_SERVER['HTTP_USER_AGENT'];
   if (strstr($ua, 'Download') or strstr($ua, 'Wget')) {sleep (7); exit;}
   $av = arg(1);
@@ -22,8 +23,8 @@ function libAvtor() {
           $n++;
     if ($n != 1 || strpos($av, ' ')) $av = $a;
   } else { // нам дали фамилию. Попробуем сделать id
-    $a = Sel("AvtorId FROM libavtorname WHERE LastName = '%s' OR '%s' = Concat_WS(' ', FirstName, LastName) LIMIT 1", $av, $av);
-    if (!$a) $av = iconv ("windows-1251", "UTF-8", $av);
+//    $a = Sel("AvtorId FROM libavtorname WHERE LastName = '%s' OR '%s' = Concat_WS(' ', FirstName, LastName) LIMIT 1", $av, $av);
+//    if (!$a) $av = iconv ("windows-1251", "UTF-8", $av);
     $sth = SELECT("AvtorId FROM libavtorname WHERE LastName = '%s' OR '%s' = Concat_WS(' ', FirstName, LastName)", $av, $av);
     for ($n = 0; $n < 10 && ($aa = db_result($sth));$k++) 
       if (!Sel("GoodId FROM libavtoraliase WHERE BadId = $aa")) 
@@ -47,12 +48,14 @@ function libAvtor() {
       if (function_exists($f = "libAvtor$f"))
         return $f($a, $a1);
 
+  $ttt[$jj++] = microtime(1);
+
   $r = '';  
   $GoodId = Sel ("GoodId FROM libavtoraliase WHERE BadId = $a");
   if ($GoodId && $GoodId != $a) $r .= '<h2>(синоним для '.avl($a = $GoodId).')</h2>';
   if (strlen($lang=arg(2)) == 2) {
     $lsql = " AND Lang = '$lang'";
-    $r .= "<h2>Язык: $lang</h2><br>";
+    $r .= "<h2>Язык: $lang (<a href=/a/$av>все языки</a>)</h2>";
   } else {
     $lang = '';
   } 
@@ -82,12 +85,12 @@ function libAvtor() {
     $order = 'Title';
     $c1 = 'checked';
   } elseif ($oo == 't') {
-    $order = '1 DESC';
+    $order = '2 DESC';
     $c3 = 'checked';
   } else {
     $c2 = 'checked'; 
     $joinseq = "LEFT JOIN libseq USING(BookId) LEFT JOIN libseqname USING(SeqId)";
-    $order = "SeqName, SeqNumb, 2, Title";
+    $order = "SeqName, SeqNumb, 1, Title";
   }
 
   if (arg(2) == 'stat') return libAvtorStat($a, $c1, $c2, $c3, $order);
@@ -103,7 +106,7 @@ function libAvtor() {
   }
 
   if (!$lang) {
-    $sth1 = SELECT("DISTINCT Lang FROM `libavtor` JOIN libbook USING (BookId) WHERE AvtorId = $a AND Lang <> ''");
+    $sth1 = SELECT("DISTINCT Lang FROM `libavtor` JOIN libbook USING (BookId) WHERE AvtorId = $a AND Lang <> '' AND NOT (Deleted&1)");
     while ($l = db_result($sth1)) { $sellang .= "<option value='$l'>$l";  $ln++; }
   }  
   if ($ln > 1) $r .= "<br>Язык: <select onChange=\"document.location='/a/$a/'+options[selectedIndex].value\";><option>$sellang</select>";
@@ -119,48 +122,62 @@ else $sa = 'on';
     $joinreaded = "LEFT JOIN libreaded ON(UserId =$user->uid AND libreaded.BookId = libbook.BookId)";
     $wherereaded = "AND libreaded.UserId IS NULL";
   }
+  $fields = "libbook.BookId AS BookId, Lang, N, FileType, FileSize, Deleted, Title, Title1";
   if ($joinseq) $seqid = ', SeqId';
   if ($g) {
-    $sth = SELECT ("libbook.BookId AS b, GenreId $seqid
+    $sth = SELECT ("GenreId, $fields $seqid
 FROM libavtor JOIN libgenre USING (BookId) JOIN libbook USING (BookId) $joinseq $joinreaded
 WHERE AvtorId = $a AND NOT (Deleted&1) $wherereaded AND GenreId = $g $lsql
-GROUP BY 1 ORDER BY $order");
+GROUP BY 2 ORDER BY $order");
     $r .= "<h3>Произведения в жанре <a href=/g/$genre>$gn</a></h3>";
     $r .= "(<a href=/a/$av>все книги автора</a>)"; 
     $formlink = "/a/$av?Genre=$genre";
-    $sth1 = SELECT ("libtranslator.BookId AS b, GenreId $seqid
+    $sth1 = SELECT ("GenreId, $fields $seqid
 FROM libtranslator JOIN libgenre USING (BookId) JOIN libbook USING (BookId) $joinseq $joinreaded
 WHERE TranslatorId = $a AND NOT (Deleted&1) $wherereaded AND GenreId = $g $lsql
-GROUP BY 1 ORDER BY $order");
+GROUP BY 2 ORDER BY $order");
   } else {
-    $sth = SELECT("libbook.BookId AS b, GROUP_CONCAT(CAST(GenreId AS CHAR)ORDER BY GenreId) as g $seqid
+    $sth = SELECT("GROUP_CONCAT(DISTINCT CAST(GenreId AS CHAR)ORDER BY GenreId) as g, $fields $seqid
 FROM libavtor LEFT JOIN libgenre USING (BookId) JOIN libbook USING (BookId) $joinseq $joinreaded
 WHERE AvtorId = $a AND NOT (Deleted&1) $wherereaded $lsql
-GROUP BY 1 ORDER BY $order");
-    $sth1 = SELECT("libtranslator.BookId AS b, GROUP_CONCAT(CAST(GenreId AS CHAR)ORDER BY GenreId) as g $seqid
+GROUP BY 2 ORDER BY $order");
+    $sth1 = SELECT("GROUP_CONCAT(DISTINCT CAST(GenreId AS CHAR)ORDER BY GenreId) as g, $fields $seqid
 FROM libtranslator LEFT JOIN libgenre USING (BookId) JOIN libbook USING (BookId) $joinseq $joinreaded
 WHERE TranslatorId = $a AND NOT (Deleted&1) $wherereaded $lsql
-GROUP BY 1 ORDER BY $order");
+GROUP BY 2 ORDER BY $order");
   $formlink = "/a/$av";
 }
 
+  $ttt[$jj++] = microtime(1);
+
   $r .= downloadall('up', $n); 
-  while ($a1 = dbf($sth)) 
-    $r .= DoLibRow($a1->b, 'genre sequence annotation rate'. ($n > 1?'checkbox':''));
+  while ($a1 = dbf($sth)) {
+    $a1->a = $a;
+    $r .= DoLibRow($a1, "genre sequence annotation rate a$a". ($n > 1?'checkbox':''));
+  }  
   for ($kk=0; $a1 = dbf($sth1);$kk++) {
     if (!$kk) $r .= "\n<h3>Переводы</h3>";
-    $r .= DoLibRow($a1->b, 'genre sequence annotation rate'. ($n > 1?'checkbox':''));
+    $r .= DoLibRow($a1, "genre sequence annotation rate a$a". ($n > 1?'checkbox':''));
   }
     
   $r .= downloadall('dn', $n)."</form>";//. theme('pager');
 
+  $ttt[$jj++] = microtime(1);
+  if ($user->uid == 0 || !Sel("uid FROM bwlist WHERE uid = $user->uid LIMIT 1")) { //аноним или пользователь без блэклиста, можно кэшировать
+    $cid = "v$a";
+    if ($v = libcg($cid, polka))
+      return $r.$v;
+    $v = ' ';  
+  }    
   $sth = SELECT ("* FROM libpolka JOIN libavtor USING (BookId) WHERE libavtor.AvtorId = $a AND Flag = '' AND Text <> '' ORDER BY libpolka.ID DESC LIMIT 10");
   while ($a1 = dbf($sth)) {
-    if (!$ii++) $r .= "<br><br><h3><a href=/a/$a/v/rss class=feed-icon><img src=/misc/feed.png alt=RSS title=RSS width=16 height=16></a>
+    if (!$ii++) $v .= "<br><br><h3><a href=/a/$a/v/rss class=feed-icon><img src=/misc/feed.png alt=RSS title=RSS width=16 height=16></a>
 <a href=/a/$a/v>Впечатления</a></h3>";
-    $r .= libpline($a1, 1);
-  }  
-  return $r;
+    $v .= libpline($a1, 1);
+  }   
+  $ttt[$jj++] = microtime(1);
+  if ($cid) libcs($cid, $v);
+  return $r.$v;
 }
 
 function libAvtorV($a) {
@@ -196,7 +213,7 @@ function libAvtorEdit($a, $a1) {
     $r .= "<br>".avl($a1->BadId)." => $aname ";
     if (user_access('библиотекарь')) $r .= "<a href=/a/$a/deletealias/$a1->BadId>(удалить алиас)</a>";
   }
- 
+  $r .= "<br>"; 
   if ($oo = $_GET['order']) SetUserOpt('o',$oo);
   else $oo = GetUserOpt('o');
 
@@ -215,7 +232,7 @@ function libAvtorEdit($a, $a1) {
 <input type=radio name=order value=b onClick=submit()$c2>По сериям и жанрам
 <input type=radio name=order value=t onClick=submit()$c3>По дате поступления".AnnChkbox()."</form>
 <table><form name=bk action=/mass/edit/$a>";
-  $s1 = pgq("SELECT libbook.BookId AS b, GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) AS G, Lang  
+  $s1 = pgq("SELECT libbook.BookId AS b, GROUP_CONCAT(DISTINCT CAST(GenreId AS CHAR) ORDER BY GenreId) AS G, Lang  
              FROM libavtor JOIN libgenre USING (BookId) JOIN libbook USING (BookId) LEFT JOIN libseq USING(BookId) 
              WHERE AvtorId = $a AND NOT (Deleted&1) GROUP BY 1 ORDER BY $order", $tot);
 
@@ -227,7 +244,7 @@ function libAvtorEdit($a, $a1) {
       $r .= '</select><td><input type=checkbox name=all onClick="{UCC(this.checked)}">';
     } 
     $b = $a1->b;
-    $r .= DoLibRow ($b,"genre edit nobreak");
+    $r .= DoLibRow ($b,"genre edit nobreak ae$a");
     $r .= "<input size=2 id=lang$b onChange=setlang($b) value='$a1->Lang'> ";
     $r .= "<input type=checkbox name=$b></td></tr>\n";
     if ($sa) if ($an = ReadAnnotation($b, $nid)) $r .= "<tr><td colspan=3>$an";
@@ -318,8 +335,11 @@ function libAvtorAddBook($a) {
   } elseif ($_POST['ftpfile']) { 
     $fname = trim($_POST['ftpfile']);
     $tname = "ocr/$fname";
+    if (!file_exists($tname)) 
+      if (($arr = glob("ocr/*/$fname")) || ($arr = glob("ocr/$fname.*")) || ($arr = glob("ocr/*/$fname.*")))
+        $tname = $arr[0];
   } else return "<p><p>Загрузка файла в библиотеку. Для массовой загрузки <a href=/upload>удобнее использовать FTP</a>.
-<p>Файл будет добавлен в собрание ".avl($a).". Если это неправильно, <a href=/upload/ftp>выберите другого автора</a>
+<p>Файл будет добавлен в собрание ".avl($a).". Если это неправильно, <a href=/upload>выберите другого автора</a>
 <p>Если у данного произведения несколько авторов, остальных можно будет добавить потом на страничке редактирования книги.
 <p>Тип файла может не совпадать с расширением. Если это pdf упакованный в zip, то тип надо ставить pdf.
 <p>Если тип файла будет указан как zip или rar, то файл будет распакован и все полученные файлы обработаны по отдельности.
@@ -462,12 +482,14 @@ function joinbooks($b1, $b2, $tit = '') {
 }
   
 function libAvtorSearchd($a) {
-  $st = SELECT("Sum(1) as s, SUBSTRING_INDEX(Title, '(',1) as T from libavtor join libbook using (bookid) where AvtorId = $a AND NOT (Deleted&1) group by 2");
+  $st = SELECT("Sum(1) as s, SUBSTRING_INDEX(Title, '(',1) as T FROM libavtor JOIN libbook USING(BookId) where AvtorId = $a AND NOT (Deleted&1) AND Title1 = '' 
+        GROUP BY 2");
   $r .= "<ol>";
   while ($a1 = dbf($st)) {
     if ($a1->s < 2) continue;
     $tit = rtrim($a1->T);
-    $st1 = SELECT ("libbook.Id AS Id, Ver, FileAuthor, Title, BookId AS b, FileSize, FileType FROM libbook JOIN libavtor USING(BookId) WHERE Title LIKE \"$tit%\" AND AvtorId = $a AND NOT (1&Deleted) LIMIT 2");
+    $st1 = SELECT ("Id, Ver, FileAuthor, Title, BookId AS b, FileSize, FileType FROM libbook JOIN libavtor USING(BookId) JOIN libcacheid USING(BookId) 
+    WHERE Title LIKE \"$tit%\" AND AvtorId = $a AND NOT (1&Deleted) AND Title1 = '' LIMIT 2");
     $a2 = dbf($st1); $b = $a2->b; 
     $a3 = dbf($st1); $b2 = $a3->b;
     if ($b == $b2) continue;
@@ -477,26 +499,18 @@ function libAvtorSearchd($a) {
       $v1 = 100*GetVer($b);      
       $v2 = 100*GetVer($b2);     
       $r .= " $v1:$v2 ";
-      if ($v1 > $v2 && $v2 > 0 && $a2->Id == $a3->Id) 
-        $r .= joinbooks($b, $b2, $a3->Title);
-      elseif ($v2 > $v1 && $v1 > 0 && $a2->Id == $a3->Id) 
-        $r .= joinbooks($b2, $b, $a3->Title);
-      if ($a2->FileAuthor == 'rusec') 
-        $r .= joinbooks($b2, $b, $a3->Title);
-      elseif ($a3->FileAuthor == 'rusec') 
-        $r .= joinbooks($b, $b2, $a3->Title);
-/*
-      if ($a2->FileSize < 1.1*$a3->FileSize && !ReadAnnotation($b, $nid) || $v1 < $v2) {
-        $r .= " И удалили его. (<a href=/b/$b/undel> восстановить $tit</a>)";
-        DeleteBook($b);
+      if ($v1 > $v2 && $v2 > 0 && $a2->Id == $a3->Id || $a3->FileAuthor == 'rusec') {
+        $bb1 = $b;
+        $bb2 = $b2;
+      } elseif ($v2 > $v1 && $v1 > 0 && $a2->Id == $a3->Id || $a2->FileAuthor == 'rusec') {
+        $bb1 = $b2;
+        $bb2 = $b;
+      }  
+      if ($bb1) {
+        $r .= libBookDoJoin($bb1, $bb2);
+        $bb1 = '';
         continue;
-      }      
-      if ($a2->FileSize*1.1 > $a3->FileSize && !ReadAnnotation($b2, $nid) || $v2 < $v1) {
-         $r .= " И удалили его. (<a href=/b/$b2/undel> восстановить $tit</a>)";
-         DeleteBook($b2);
-         continue ;
-      }      
-*/      
+      }  
     }
     $r .= "Ткните для выбора.";
     $r .= " <a href=/b/$b/join/$b2/ target=_blank>$tit</a>\n";
@@ -507,6 +521,7 @@ function libAvtorSearchd($a) {
 }
 
 function AddFileToLibrusec($f, $ext, $a) {
+  include_once drupal_get_path('module', 'librusec').'/validator.inc';
   global $user; 
   if (!file_exists($f)) return "<p>Не найден файл $f. Беда...";
   $GenreIds = array();  
@@ -534,6 +549,9 @@ function AddFileToLibrusec($f, $ext, $a) {
   }  
   $r .= "<form method=post action=/a/$a/addfile target=_blank><hr>Добавленине книги $title.<br>";
   if ($filetype == 'fb2') {
+    $v = validate($f);
+    $r .= $v->s;
+    if ($v->fatal) return $r;
     if ($e = parsefb2($f, 0, 'head')) return $e;
     Global $PD;
     if ($tt = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/BOOK-TITLE'])
@@ -542,13 +560,14 @@ function AddFileToLibrusec($f, $ext, $a) {
     $genre = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/GENRE'];  
   }
   if (!$genre) $genre = strtolower($_POST['genre']);
+  if (!$genre) return "Жанр не найден.";
 //  Global $debug; $debug = 1;
   $GNR = array(architecture=>design,art=>design,art_instr=>design,artists=>design,fashion=>design,graph_design=>design,performance=>dramaturgy,photography=>design,people=>nonf_biography,biography=>nonf_biography,biogr_arts=>nonf_biography,biogr_ethnic=>nonf_biography,biogr_family=>nonf_biography,biogr_historical=>nonf_biography,biogr_leaders=>nonf_biography,biogr_professionals=>nonf_biography,biogr_sports=>nonf_biography,biogr_travel=>nonf_biography,business=>sci_business,biz_accounting=>sci_business,biz_beogr=>nonf_biography,biz_life=>sci_business,biz_careers=>sci_business,biz_economics=>sci_business,biz_finance=>sci_business,biz_international=>sci_business,biz_professions=>sci_business,biz_investing=>sci_business,biz_management=>sci_business,biz_sales=>sci_business,biz_personal_fin=>sci_business,biz_ref=>sci_business,biz_small_biz=>sci_business,child_3=>child_tale,child_4=>child_prose,child_9=>child_prose,child_animals=>adv_animal,child_art=>children,child_computers=>computers,child_edu=>child_education,child_history=>child_prose,child_obsessions=>children,child_people=>children,child_characters=>child_prose,child_ref=>children,child_religion=>religion_rel,child_nature=>child_education,child_series=>children,child_sports=>children,chris_bibles=>religion_rel,chris_pravoslavie=>religion_rel,chris_catholicism=>religion_rel,chris_living=>religion_rel,chris_history=>religion_rel,chris_nlergy=>religion_rel,chris_edu=>religion_rel,chris_evangelism=>religion_rel,chris_fiction=>religion_rel,chris_holidays=>child_prose,chris_jesus=>religion_rel,chris_mormonism=>religion_rel,chris_orthodoxy=>religion_rel,chris_protestantism=>religion_rel,chris_ref=>religion_rel,chris_theology=>religion_rel,chris_devotion=>religion_rel,compusers=>computers,comp_office=>computers,comp_cert=>computers,comp_games=>computers,comp_sci=>computers,comp_db=>comp_db,comp_biz=>computers,comp_graph=>computers,comp_hardware=>comp_hard,comp_microsoft=>computers,comp_networking=>comp_osnet,comp_os=>comp_osnet,comp_programming=>comp_programming,comp_software=>comp_soft,comp_www=>comp_www,cooking=>home_cooking,cook_baking=>home_cooking,cook_can=>home_cooking,cook_art=>home_cooking,cook_drink=>home_cooking,cook_gastronomy=>home_cooking,cook_meals=>home_cooking,cook_natural=>home_cooking,cook_outdoor=>home_cooking,cook_pro=>home_cooking,cook_quick=>home_cooking,cook_ref=>home_cooking,cook_regional=>home_cooking,cook_appliances=>home_cooking,cook_diet=>home_cooking,cook_spec=>home_cooking,cook_veget=>home_cooking,entertainment=>home_entertain,entert_comics=>home_entertain,entert_games=>home_entertain,entert_humor=>home_entertain,entert_movies=>home_entertain,entert_music=>home_entertain,performance=>dramaturgy,nonfiction_pop_culture=>home_entertain,entert_radio=>home_entertain,entert_tv=>home_entertain,gay_biogr=>nonf_biography,history_gay=>nonf_biography,literature_gay=>prose_counter,gay_mystery=>sf_horror,gay_nonfiction=>nonfiction,gay_parenting=>home,gay_travel=>adv_geo,health=>home_health,health_aging=>sci_medicine,health_alt_medicine=>sci_medicine,health_beauty=>home_health,health_cancer=>sci_medicine,health_death=>home_health,health_diets=>home_health,health_dideases=>home_health,health_fitness=>home_health,health_men=>home_health,health_mental=>sci_psychology,health_nutrition=>home_health,health_personal=>home_health,health_psy=>sci_psychology,health_recovery=>home_health,health_ref=>home_health,health_rel=>home_health,health_first_aid=>home_health,health_self_help=>home_health,health_sex=>home_sex,health_women=>home_health,history_africa=>sci_history,history_america=>sci_history,history_ancient=>sci_history,history_asia=>sci_history,history_australia=>sci_history,history_europe=>sci_history,history_study=>sci_history,history_jewish=>sci_history,history_middle_east=>sci_history,histor_military=>sci_history,history_military_science=>sci_history,history_russia=>sci_history,history_usa=>sci_history,history_world=>sci_history,history_gay=>sci_history,home_pets=>home_pets,home_collect=>home_crafts,home_crafts=>home_crafts,home_entertain=>home_entertain,home_expert=>home_diy,home_garden=>home_garden,home_design=>home_diy,home_howto=>home_diy,home_interior_design=>home_diy,home_cottage=>home,home_weddings=>home,horror=>sf_horror,horror_antology=>sf_horror,horror_british=>sf_horror,horror_fantasy=>sf_horror,horror_erotic=>sf_horror,horror_ghosts=>sf_horror,horror_graphic=>sf_horror,horror_occult=>sf_horror,horror_ref=>sf_horror,horror_usa=>sf_horror,horror_vampires=>sf_horror,literature=>prose_classic,literature_books=>prose_classic,literature_british=>prose_classic,literature_classics=>prose_classic,literature_drama=>prose_classic,literature_essay=>prose_classic,literature_adv=>adventure,literature_antology=>prose_classic,literature_erotica=>love_erotica,literature_fairy=>child_tale,literature_saga=>prose_classic,literature_gay=>prose_counter,literature_history=>prose_history,literature_men_advent=>adventure,literature_political=>prose_contemporary,literature_religion=>religion_rel,literature_sea=>adv_maritime,literature_sports=>home_sport,literature_war=>prose_contemporary,literature_western=>adv_western,literature_critic=>prose_history,literature_letters=>nonf_biography,literature_poetry=>poetry,literature_short=>prose_classic,literature_usa=>prose_classic,literature_women=>love_contemporary,literature_world=>prose_classic,literature_rus_classsic=>prose_rus_classic,literature_su_classics=>prose_su_classics,mystery=>det_history,thriller_mystery=>detective,thriller_police=>det_police,thriller=>thriller,nonfiction_avto=>nonfiction,nonfiction_crime=>nonfiction,nonfiction_events=>nonfiction,biz_economics=>sci_business,nonfiction_edu=>science,nonfiction_gov=>science,nonfiction_holidays=>science,nonfiction_law=>sci_juris,nonfiction_philosophy=>sci_philosophy,nonfiction_politics=>nonfiction,nonfiction_social_sci=>science,nonfiction_antropology=>sci_history,science_archaeology=>sci_history,nonfiction_traditions=>nonfiction,nonfiction_demography=>nonfiction,nonfiction_racism=>nonfiction,nonfiction_emigration=>nonfiction,nonfiction_ethnology=>science,nonfiction_folklor=>antique_myths,nonfiction_gender=>science,nonfiction_gerontology=>science,nonfiction_hum_geogr=>science,nonfiction_methodology=>science,nonfiction_philantropy=>nonfiction,nonfiction_pop_culture=>nonfiction,nonfiction_pornography=>home_sex,nonfiction_ref=>reference,nonfiction_research=>science,nonfiction_social_work=>science,nonfiction_sociology=>science,nonfiction_spec_group=>science,nonfiction_stat=>science,health_psy=>sci_psychology,nonfiction_transportation=>nonfiction,nonfiction_true_accounts=>nonfiction,nonfiction_urban=>nonfiction,nonfiction_women=>nonfiction,outdoors_birdwatching=>sci_biology,outdoors_conservation=>nonfiction,outdoors_ecology=>sci_biology,outdoors_ecosystems=>sci_biology,outdoors_env=>sci_biology,outdoors_fauna=>sci_biology,outdoors_field_guides=>ref_guide,outdoors_flora=>sci_biology,outdoors_hiking=>home_crafts,outdoors_hunt_fish=>home_crafts,outdoors_resources=>science,outdoors_nature_writing=>sci_biology,outdoors_outdoor_recreation=>home_sport,outdoors_ref=>sci_biology,outdoors_survive=>home_sport,outdoors_travel=>adv_geo,family=>home,family_adoption=>home,family_aging_parents=>home,family_edu=>home,family_activities=>home,family_health=>home_health,family_relations=>home,family_fertility=>home_health,family_humor=>humor,family_lit_guide=>home,family_parenting=>home_health,family_pregnancy=>home_health,family_ref=>reference,family_special_needs=>home_health,professional_finance=>sci_business,architecture=>design,professional_management=>sci_business,professional_edu=>science,professional_enginering=>sci_tech,professional_law=>sci_juris,professional_medical=>sci_medicine,professional_sci=>sci_tech,references=>reference,ref_almanacs=>ref_ref,biz_ref=>sci_business,ref_careers=>ref_ref,ref_catalogs=>ref_ref,ref_cons_guides=>ref_ref,ref_dict=>ref_ref,ref_edu=>sci_business,ref_encyclopedia=>ref_encyc,ref_etiquette=>reference,ref_langs=>reference,ref_fun=>reference,ref_genealogy=>sci_history,nonfiction_law=>sci_juris,ref_books=>reference,ref_quotations=>reference,ref_study_guides=>ref_ref,ref_words=>reference,ref_writing=>prose_contemporary,religion=>religion_rel,religion_bibles=>religion_rel,religion_buddhism=>religion,Christianity=>religion_rel,religion_earth=>religion,religion_fiction=>religion_rel,religion_hinduism=>religion,religion_islam=>religion,religion_judaism=>religion,religion_new_age=>religion_rel,religion_occult=>religion_esoterics,religion_religious_studies=>religion_rel,religion_spirituality=>religion_esoterics,religion_east=>religion_self,religion_other=>religion,romance=>prose_classic,romance_anthologies=>prose_classic,romance_contemporary=>prose_contemporary,romance_fantasy=>sf_fantasy,romance_sf=>sf,romance_historical=>prose_history,romance_multicultural=>prose_contemporary,romance_regency=>prose_classic,romance_religion=>religion_rel,romance_romantic_suspense=>love_contemporary,romance_series=>prose_contemporary,romance_time_travel=>sf,ref_writing=>prose_contemporary,science=>science,science_agri=>science,science_archaeology=>sci_history,science_astronomy=>science,science_behavioralsciences=>sci_psychology,science_psy=>sci_psychology,science_biolog=>sci_biology,science_chemistry=>sci_chem,science_earth=>science,science_edu=>science,science_evolution=>science,science_measurement=>science,science_history_philosophy=>sci_history,science_math=>sci_math,science_medicine=>sci_medicine,science_eco=>science,science_physics=>sci_phys,science_ref=>science,science_technology=>sci_tech,romance_sf=>sf,romance_fantasy=>sf_fantasy,gaming=>sf,sf_writing=>sf,fantasy_alt_hist=>sf_history,sf_cyber_punk=>sf_cyberpunk,sport=>home_sport,teens_beogr=>nonf_biography,teens_health=>home_sport,teens_history=>adv_history,teens_horror=>sf_horror,teens_literature=>prose_classic,teens_mysteries=>detective,teens_ref=>reference,teens_religion=>religion_rel,teens_school_sports=>home,teens_sf=>sf,teens_tech=>science,teens_series=>child_adv,teens_social=>sci_psychology,travel=>adv_geo,travel_africa=>adv_geo,travel_asia=>adv_geo,travel_australia=>adv_geo,travel_canada=>adv_geo,travel_caribbean=>adv_geo,travel_europe=>adv_geo,travel_guidebook_series=>adv_geo,travel_lat_am=>adv_geo,travel_middle_east=>adv_geo,travel_polar=>adv_geo,travel_spec=>adv_geo,travel_usa=>adv_geo,travel_rus=>adv_geo,travel_ex_ussr=>adv_geo,women_divorce=>home,women_domestic=>home,women_child=>home,women_single=>home);
   foreach (split (',' , $genre) as $gn) {
     if ($GNR[$gn]) $gn = $GNR[$gn];
     if ($g = Sel("GenreId FROM libgenrelist WHERE GenreId = '$gn' OR GenreCode = '$gn' OR GenreDesc = '$gn'"))
       $GenreIds[] = $g;
-    else return "непонятный жанр $gn";
+    else return "непонятный жанр '$genre'";
   }    
   $r .= "<hr>";
   if (!$GenreIds[0]) {
@@ -568,6 +587,7 @@ function AddFileToLibrusec($f, $ext, $a) {
 
 // всё хорошо, добавляем книгу.
   $fs = filesize($f); 
+  if ($fs < 4999 && !user_access('библиотекарь')) return "Файл не найден или очень уж мал. Стихи и прочую мелочь просьба собирать в сборники килобайт хотя бы по сто.";
   if ($PD->AvtorIds[0]) $a = $PD->AvtorIds[0]; else $PD->AvtorIds[0] = $a;
   $r .= " Наменование: $title<br>";
 //Попытаемся выловить дубли. Может, получится. Будем надеяться. Дубли - это наша беда. Да.
@@ -577,7 +597,7 @@ function AddFileToLibrusec($f, $ext, $a) {
 //  print " Наменование: $t";
 //if ($user->uid == 1) {print "<pre>"; print_r($PD); exit;}
   $id = $PD->head['FICTIONBOOK/DESCRIPTION/DOCUMENT-INFO/ID'];
-  if ($id && ($BookId = Sel ("BookId FROM libbook WHERE Id = '$id'"))) {
+  if ($id && ($BookId = Sel ("BookId FROM libcacheid WHERE Id = '$id'"))) {
     $oldver = Sel ("Ver FROM libbook WHERE BookId = $BookId");
     $ver = $PD->head['FICTIONBOOK/DESCRIPTION/DOCUMENT-INFO/VERSION'];
     if (1*$oldver >= 1*$ver) {
@@ -598,15 +618,12 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
   $r .= " file:$outname<br>";
   $fff = "b/$outname.fb2";
   if ($BookId) {
-    if ($filetype !== 'fb2') {
-      unlink ($f);
-      return $r . "Такая книга уже есть. Что-то не так. Обратитесь в администрацию<br>";
-    } elseif ($fs == Sel("FileSize FROM libbook WHERE BookId = $BookId")) {
+    if ($fs == Sel("FileSize FROM libbook WHERE BookId = $BookId")) {
       unlink ($f);
       return "<br>Книга уже есть в библиотеке - ".bl($BookId); 
-    }  
+    }
   }    
-// Не дубль, во всяком случае не для шарка. Добавляем по-взрослому.
+// Не дубль, во всяком случае не такой как есть. Добавляем по-взрослому.
 
   $ii = '';
   $aname = '';
@@ -641,55 +658,36 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
   $nick = addslashes($nick);
   $keywords = addslashes($PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/KEYWORDS']);
   $srclang = addslashes($PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/SRC-LANG']);
-  $Action = "INSERT INTO libbook (FileSize, FileType, Title, Year, Id, Ver, Lang, FileAuthor, keywords) VALUES ('$fs', '$filetype','$title','$year', '$id', '$ver', '$lang', '$nick', '$keywords')";
+  $Action = "INSERT INTO libbook (FileSize, FileType, Title, Year, Ver, Lang, FileAuthor, keywords) VALUES ('$fs', '$filetype','$title','$year', '$ver', '$lang', '$nick', '$keywords')";
   LogAction ($Action, "Add book","");
   $actionid = Sel ("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL = \"$Action\" ORDER BY ActionId DESC LIMIT 1" );
   watchdog('librusec', "SELECT ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL = \"$Action\" ORDER BY ActionId DESC LIMIT 1");
-  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$fs%$id%' ORDER BY ActionId DESC LIMIT 1");
+  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$fs%$title%' ORDER BY ActionId DESC LIMIT 1");
+  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$title%' ORDER BY ActionId DESC LIMIT 1");
+  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$fs%' ORDER BY ActionId DESC LIMIT 1");
   $b = Sel("BookId FROM libbook WHERE Title = '$title' AND FileSize = '$fs' ORDER BY BookId DESC LIMIT 1");
   if (!$b) return $r. "Что-то не получилось. Свяжитесь с администрацией";
-  system ("chmod a+r \"$nn1\"");
+  if ($actionid) Update(libactions, "BookId=$b", "ActionId=$actionid");
+  if ($id=addslashes($id)) Insert(libcacheid, "BookId, Id", "$b, '$id'");
+  chmod($nn1, 0644);
   if ($filetype == 'fb2') {
     rename ($nn1, "b/$b.fb2"); 
   } else {
     Insert (libfilename, "BookId, FileName", "$b, \"$nn\"");
   }  
-  Update (libactions, "BookId=$b", "ActionId=$actionid");
   $r .= "<p><a href=/b/$b/edit target=_blank>Книга добавлена</a><br>";
   foreach ($GenreIds as $gid) Insert ('libgenre', 'BookId, GenreId', "$b, $gid"); 
   if ($PD->AvtorIds) foreach ($PD->AvtorIds as $aid) Insert ('libavtor', 'BookId, AvtorId', "$b, $aid"); 
   if ($PD->TranslatorIds) foreach ($PD->TranslatorIds as $aid) Insert ('libtranslator', 'BookId, TranslatorId', "$b, $aid"); 
   if ($PD->SeqIds) foreach($PD->SeqIds as $seq) Insert (libseq, 'BookId, SeqId, SeqNumb, Level', "$b, $seq[0], '$seq[1]', $seq[2]");
   
-  if ($dublid = Sel ("BookId FROM libbook JOIN libavtor USING (BookId) WHERE Title=\"$title\" AND AvtorId = $a AND BookID != $b AND NOT (Deleted&1)")) {
+  if ($dublid = Sel("BookId FROM libbook JOIN libavtor USING (BookId) WHERE Title=\"$title\" AND AvtorId = $a AND BookID != $b AND NOT (Deleted&1) AND Title1 = ''")) {
      $r .= "<p>Кажется, нашли дубля.";
-     if (user_access('библиотекарь')) {
-           //
-           // $b      - new book Librusec-book-number, not the FICTIONBOOK/DESCRIPTION/DOCUMENT-INFO/ID
-           // $dublid - dubl Librusec-book-number
-           // $id  - new book document-info-ID (was set earlier)
-           // $ver - new book document-info-version (was set earlier)
-           //
-           // Get document-info-ID and version for dubl
-           $dubldocid = Sel ("Id FROM libbook WHERE BookId = $dublid"); // ya ne uveren v sintaksise
-           $dublver =  Sel ("Ver FROM libbook WHERE BookId = $dublid");
-           // Automatic upgrade of the same book
-           if( ($dubldocid==$id) && (1.0*$ver > 1.0*$dublver) ){
-               $r .= joinbooks($b,$dublid,$title);
-               return $r . "<hr>\n";
-           };
-           // Automatic upgrade of the old "LibRusEc kit" book
-           //                            012345678901234567890123
-           // U libruseka dva tipa id - "Tue Jun 12 03:34:15 2007" i "Mon Jun 10 19:57:46 2013"
-           // Kljuchevoe - probely s godom.
-           $i = strrpos($dubldocid," 20");
-           $r .= " ($i)($dubldocid) "; // debugonly
-           if( ($i==19) && (1.0*$ver > 1.0*$dublver) ){
-               $r .= joinbooks($b,$dublid,$title);
-               return $r . "<hr>\n";
-           };
-     }; // if библиотекарь
-     // No automatic resolution, resolve conflict manually
+     $dubldocid = Sel("Id FROM libcacheid WHERE BookId = $dublid"); 
+     $dublver =  Sel("Ver FROM libbook WHERE BookId = $dublid");
+     // Automatic upgrade of the same book
+     if (($dubldocid==$id) && (1.0*$ver > 1.0*$dublver) || Sel("FileAuthor FROM libbook WHERE BookId = $dublid") == 'rusec') 
+       return $r.libBookDoJoin($b, $dublid)."<hr>\n";
      $r .= " Ткните в него для разрешения конфликта. <a href=/b/$b/join/$dublid  target=_blank>Дубль: $title</a>";  
   }
   return $r . "<hr>\n";

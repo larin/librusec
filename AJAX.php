@@ -53,6 +53,12 @@ elseif (isset($_POST['op'])) $op = $_POST['op'];
 if (!$op) exit;
 
 switch ($op) {
+  case 'topadvert':
+    if ($_POST['len'] < 100) { // попытка найти книгу в магазинах не удалась. Вычёркиваем.
+      $b = substr($_POST['id'], 19);
+      mysql_query("INSERT INTO libtopadvert (BookId) VALUES($b) ON DUPLICATE KEY UPDATE Time = NOW()");
+    }
+  exit;
   case 'ss':
     if ($b && $uu) 
       db_query("INSERT INTO libreaded (BookId, UserId) VALUES($b, $uu) ON DUPLICATE KEY UPDATE BookId = BookId");    
@@ -87,7 +93,7 @@ switch ($op) {
     $q = 1*($_GET['q']);
     if (!$b || !$u || !$q) exit;
     mysql_query("INSERT INTO libquality (q, BookId, uid) VALUES ($q, $b, $u) ON DUPLICATE KEY UPDATE q=$q");
-    $cid = 'libquality'.$b;
+    $cid = 'libq'.$b;
     if ($memcachemodule) dmemcache_delete($cid, librusec);
     else mysql_query ("DELETE FROM librusec WHERE cid = '$cid'");
  exit;

@@ -1,7 +1,20 @@
 <?php
-include_once drupal_get_path('module', 'librusec').'/parser.inc';
 Global $rates;
 $rates = array ('  ', 'нечитаемо', 'плохо', 'неплохо', 'хорошо', 'отлично!');
+module_load_include('inc', 'librusec', 'parser');
+
+class DB {
+  private $dbname, $idname;
+  function DB($dbname = 'libbook') {
+    $this->dbname = $dbname;
+    $this->idname = 'BookId';
+  }
+  function __call($m, $a) {
+    return Sel("$m FROM $this->dbname WHERE $this->idname = $a[0]");
+  }
+}
+
+
 Global $LoadAvg;
 // Относительный уровень нагрузки. до 1 - сервер свободен, 1-2 - загружен, больше 2 - сильно загружен.
 function LA() {
@@ -15,7 +28,7 @@ function LA() {
   $Data = fread($fh, 55);
   fclose($fh);
   list ($la2) = split(' ', $Data);
-  $LoadAvg = max($la1, $la2)/5;
+  $LoadAvg = max($la1, $la2)/4;
   return $LoadAvg; 
 }
 
@@ -64,8 +77,18 @@ $ShowEN = $user->uid ? 1 : variable_get('librusec_ShowEN', '');
 $ButtonStyle = "class=button";
 $debug = 0;
 
+# Z carskiej imperii
+
+# Podania i legendy polskie, ruskie i litewskie
+
 function translitcyr($cyr_str) {
-$transtbl = array("Ґ"=>"G","Ё"=>"Yo","Є"=>"E","Ї"=>"Yi","І"=>"I",
+$transtbl = array(
+   "Ґ"=>"G","Ё"=>"Yo","Є"=>"E","Ї"=>"Yi","І"=>"I",
+   "ą" => "a", "ĉ" => "c", "ć" => "c", "ę" => "e", 
+   "ĵ" => "j", "ł" => "l", "ń" => "n", "ó" => "o", "ś" => "s", "ź" => "z", "ż" => "z",  
+   "Ą" => "A", "Ć" => "C", "Ć" => "c", "Ę" => "E", 
+   "Ĵ" => "J", "Ł" => "L", "Ń" => "N", "Ó" => "O", "Ś" => "S", "Ź" => "Z", "Ż" => "Z",
+   "ŭ" => "u", "ĥ" => "h", "Ŭ" => "U", "Ĥ" => "H",    'ў'=>'y',    'Ў'=>'Y',
    "і"=>"i","ґ"=>"g","ё"=>"yo","№"=>"N","є"=>"e",
    "ї"=>"yi","А"=>"A","Б"=>"B","В"=>"V","Г"=>"G",
    "Д"=>"D","Е"=>"E","Ж"=>"Zh","З"=>"Z","И"=>"I",
@@ -81,7 +104,7 @@ $transtbl = array("Ґ"=>"G","Ё"=>"Yo","Є"=>"E","Ї"=>"Yi","І"=>"I",
    "ц"=>"ts","ч"=>"ch","ш"=>"sh","щ"=>"sch","ъ"=>"",
    "ы"=>"yi","ь"=>"","э"=>"e","ю"=>"yu","я"=>"ya", '$' => 'S',
    " "=>'_', '"'=>'', "'"=>'',":"=>'', "("=>'_',")"=>'_',"["=>'_',"]"=>'_',"{"=>'_',"}"=>'_',
-   'ў'=>'y', '…' => '.', '!'=>'','“'=>'','”'=>'', '`'=>'', '—'=>'-',
+   '…' => '.', '!'=>'','“'=>'','”'=>'', '`'=>'', '—'=>'-', '–'=>'-',
    '?'=>'',','=>'','\''=>'','«'=>'','»'=>'', '&'=>'_', '#' => 'N');
    for ($i = 1; $i < 32; $i++) $transtbl[chr($i)] = '';
    return str_replace('__','_', strtr($cyr_str, $transtbl));
@@ -144,6 +167,9 @@ function Update ($table, $columns, $cond)   {
 
 function LogAction ($sql, $desc, $undo, $BookId = 0) {
   if (!libcanedit($BookId)) return;
+  if ($BookId) libsettag("b$BookId");
+  libsettag(b);
+  libsettag(polka);
   Global $user;
   if ($sql) db_query ($sql);
   $sql = addslashes ($sql); 
@@ -151,23 +177,61 @@ function LogAction ($sql, $desc, $undo, $BookId = 0) {
   Insert ('libactions', 'UserName, ActionSQL, ActionDesc, ActionUndo, BookId', "'%s', '%s', '%s', '%s', $BookId", $user->name, $sql, $desc, $undo);
 }
 
+function dmemcache_add($key, $val) {
+  if (function_exists(dmemcache_object)) 
+    if ($mc = dmemcache_object(librusec)) 
+      return $mc->add(dmemcache_key($key, librusec), $val, 0, 0);
+}
+
 //libCacheGet
-function libcg($cid, $time = 10000) {
-  if ($W = cache_get($cid, librusec))
-    if (time() - $W->created < $time || LA() > 1) 
+function libcg($cid, $time = 0) {
+//  return apc_fetch($cid);
+  if ($W = cache_get($cid, librusec)) {
+    if ($tag = $W->tag) {
+      if (dmemcache_get($tag, librusec) == $W->val) {// версия объекта не изменилась
+        apc_inc('Memcache good tag');
+        return $W->data;
+      } else { // устарелая версия в кэше, надо переделать
+        apc_inc('Memcache bad tag');
+        return '';
+      }
+    } elseif ($time == 0 || time() - $W->created < $time || LA() > 1) {
       return $W->data;
+    }  
+  };
   return '';
 }
 
 //libCacheSet
-function libcs($cid, $data) {
-  cache_set($cid, $data, librusec); 
+function libcs($cid, $data, $tag = NULL) {
+  if (!$cid) return $data;
+  if (function_exists(dmemcache_get) && isset($tag)) {
+    dmemcache_add($tag, time());
+    $val = dmemcache_get($tag, librusec);
+    $cache = new stdClass;
+    $cache->tag = $tag;
+    $cache->val = $val;
+    $cache->data = $data;
+    dmemcache_set($cid, $cache, CACHE_PERMANENT, librusec); 
+  } else {
+    cache_set($cid, $data, librusec, CACHE_PERMANENT); 
+  }
   return $data;
+}
+
+function libsettag($tag) { // увеличиваем значение тэга, инвалидируя этим все зависящие от него кэши.
+  if (function_exists(dmemcache_add))
+    dmemcache_set($tag, time(), CACHE_PERMANENT, librusec);
 }
 
 //libCacheDelete
 function libcd($cid) {
+//    apc_delete($cid);
   cache_clear_all($cid, librusec);
+}
+
+function apc_inc($cid) {
+  apc_store($cid, 1+apc_fetch($cid));
 }
 
 function GetAvtorId ($n1, $n2, $n3) {
@@ -207,6 +271,7 @@ function RemoveBook($b) {
   db_query("DELETE FROM libseq WHERE BookId=$b");
   db_query("DELETE FROM libblocked WHERE BookId=$b");
   db_query("DELETE FROM libfilename WHERE BookId=$b");
+  libsettag("b$b");
 }
 
 function DeleteBook ($b) {
@@ -241,25 +306,31 @@ function BookAddTranslator($b, $a) {
             "DELETE FROM libtranslator WHERE BookId=$b AND TranslatorId=$a LIMIT 1", $b);
 }
 
-function BookSetTitle($b, $t) {
+function BookSetTitle($b, $t, $t1) {
   $t = trim($t); 
+  $t1 = trim($t1); 
   $tt = Sel ("Title FROM libbook WHERE BookId = $b");
-  if (!$t or $t === $tt) return;
+  $tt1 = Sel ("Title1 FROM libbook WHERE BookId = $b");
+  if (!$t || ($t == $tt && $t1 == $tt1)) return;
   $t = addslashes($t);
+  $t1 = addslashes($t1);
   $tt = addslashes($tt);
-  LogAction ("UPDATE libbook SET Title='$t' WHERE BookId=$b", "Change Title $b from $tt to $t", "UPDATE libbook SET Title='$tt' WHERE BookId=$b", $b);
+  $tt1 = addslashes($tt1);
+  LogAction ("UPDATE libbook SET Title='$t', Title1 = '$t1' WHERE BookId=$b", "Change Title $b from $tt.$tt1 to $t.$t1", 
+             "UPDATE libbook SET Title='$tt', Title1 = '$tt1' WHERE BookId=$b", $b);
 }
 
-function BookDeleteSeq($b, $seqid = 0) {
-  if ($seqid == 0) {
+function BookDeleteSeq($b) {
+  $seqid = 1*arg(3);
+  if (!$seqid) {
     $sth = SELECT("SeqId FROM libseq WHERE BookId = %d", $b);
     while($seqid = db_result($sth)) BookDeleteSeq($b, $seqid);
   } else {
-    $a1 = S("* FROM libseq WHERE BookId = %d AND SeqId = %d", $b, $seqid);
+    $a1 = S("* FROM libseq WHERE BookId = $b AND SeqId = $seqid");
     if (!$a1->SeqId) return;
     LogAction("DELETE FROM libseq WHERE BookId=$b AND SeqId = $seqid", "Delete Seq $seqid from book $b", 
               "INSERT INTO libseq (BookId, SeqId, SeqNumb, Level) VALUES($b, $a1->SeqId, '$a1->SeqNumb', '$a1->Level')", $b);
-    libcd('seq'.$b);          
+    libcd('libseq'.$b);          
   }  
 }
 
@@ -270,7 +341,7 @@ function BookAddSeq($b, $SeqId, $SeqNumb, $level = 0) {
   $sn = Sel ("SeqName FROM libseqname WHERE SeqId=$SeqId", $b);     
   $t = preg_replace("/\($sn\s*-\s*$SeqNumb\)/", '', Sel("Title FROM libbook WHERE BookId = %d", $b));
   BookSetTitle($b, $t);
-  libcd('seq'.$b);            
+  libcd('libseq'.$b);          
 }
 
 function BookDelGenre($b, $g) {
@@ -285,14 +356,26 @@ function BookAddGenre($b, $g) {
     LogAction("INSERT INTO libgenre (BookId, GenreId) VALUES ($b, $g)", "Add genre $g to book $b", "DELETE FROM libgenre WHERE BookId=$b AND GenreId=$g LIMIT 1", $b);
 }
 
-function AvtorName($a, $t=' ') {
+function AvtorName($a, $t=' ', $LastFirst = 0) {
+  static $_avtor_names = array();
   if (!($a >= 1)) return '';
-  $an = Sel ("CONCAT_WS('$t', FirstName, MiddleName, LastName) from libavtorname WHERE AvtorId = $a");
-  $nick = Sel ("NickName from libavtorname WHERE AvtorId = $a");
-  if ($nick) $an .= " ($nick)";
-  $an = str_replace('&', '&amp;', $an);
-  $an = str_replace('>','&gt;', $an);
-  $an = str_replace('<','&lt;', $an);
+  if ($_avtor_names[$a]) return $_avtor_names[$a];
+  $a1 = S("FirstName, MiddleName, LastName, NickName FROM libavtorname WHERE AvtorId = $a");
+
+  if (mb_strlen($a1->FirstName) == 1) $a1->FirstName .= '.';
+  if (mb_strlen($a1->MiddleName) == 1) $a1->MiddleName .= '.';
+
+  if ($a1->FirstName) $an = $a1->FirstName.$t;
+  if ($a1->MiddleName) $an .= $a1->MiddleName.$t;
+  if ($LastFirst) {
+    if ($an) $an = $t.$an;
+    $an = $a1->LastName.$an;
+  } else {
+    $an .= $a1->LastName;
+  }  
+  if ($nick) $an .= "$t($nick)";
+  $an = check_plain($an);
+  if (!$LastFirst) $_avtor_names[$a] = $an;
   return $an;
 }
 
@@ -302,7 +385,7 @@ function libSelectFileType() {
   $seltp = "<select id=useropt name=dtp onchange=setuseropt('D')>";
   $tp = GetUserOpt('D');
   if (!$tp) $tp = 'fb2';
-  foreach (array('fb2', 'html', 'txt', 'pdf') as $fmt) 
+  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub') as $fmt) 
     $seltp .= '<option '.($fmt==$tp?' selected':'').">$fmt";
   $seltp .= '</select>';
   return $seltp;
@@ -329,42 +412,57 @@ function downloadall($part, $n = 2, $t = '') {
 * Используется (почти) везде, где надо вывести ссылку на книгу или список книг.
 * Параметры в $style перечисляются через пробел в произвольном порядке
 **********************************************************************************************************/
-function DoLibRow ($b, $style='') {
-//style: checkbox, edit, authors, genre, annotation (if $sa), sequence, nolink, nobreak
+function DoLibRow($b, $style='') {
+  apc_inc('Dolibrow All');
+//style: checkbox, edit, authors, genre, annotation (if $sa), sequence, nolink, nobreak, rate
   Global $lastSecId, $la, $rd, $user, $ShowEN, $sa, $predgen, $rates;
-  if (!$ShowEN && Sel("Lang FROM libbook WHERE BookId = $b") != 'ru') return ''; 
-  if (!user_access('выкачивать помногу') || LA() > 2) $dis = 'disabled';
-
+//  if (!user_access('выкачивать помногу') || LA() > 2) $dis = 'disabled';
+  if ($b->BookId) {
+    $a1 = $b;
+    $b = $a1->BookId;
+  } else {  
+    $a1 = S("* FROM libbook WHERE BookId = $b");
+  }  
+  if (!$a1 || !$ShowEN && $a1->Lang != 'ru') return ''; 
   $edit = strstr($style,'edit') && !variable_get('librusec_Mirror', '0');
-  $r = ''; // начали собирать
+  
+  if ($style != 'rateonly' && (!$user->uid || !strstr($style,'seltype'))) {
+    $cid = 'LibRow'.md5($b.$style.$sa).$ShowEN;
+    if ($r = libcg($cid)) 
+      apc_inc('Dolibrow Hits');
+  }    
+/*      if ($user->uid && strstr($style,'rate')) 
+        return str_replace("<place for rate>", DoLibRow($b, 'rateonly'), $r);
+      else   
+        return $r;
+*/
 
   if (strstr($style,'genre')) {
-    $g = DoGenreRow($b);
+    $g = DoGenreRow($b, $a1->g);
     if (strstr($style,'checkbox')) {
       $g = str_replace("<p class=genre>", "<p class=genre><input type=checkbox $dis onclick='UCCg(this.checked, \"$predgen\")'>", $g);
     }  
+    if ($edit && $g) $g = '<tr><td>'.$g;
   }  
-  
-  $a1 = S("* FROM libbook WHERE BookId = $b");
 
-  $cid = "seq$b";
-  $Seq = libcg($cid);
+  $Seq = libcg($cid1 = 'seq'.$b);
   if (!$Seq) {
     $Seq->BookId = $b;
-    $sth = SELECT("* FROM libseq JOIN libseqname USING(SeqId) WHERE BookId = $b ORDER BY level");
+    $sth = SELECT("* FROM libseq JOIN libseqname USING(SeqId) WHERE BookId = $b ORDER BY level LIMIT 1");
     while ($ss = dbf($sth)) {
       $Seq->ids[] = $ss;
       $Seq->allids .= $ss->SeqId.' ';
     }  
-    libcs($cid, $Seq);
+    libcs($cid1, $Seq, "b$b");
   }  
+  if ($Seq->ids[0] == $Seq->ids[1]) $Seq->ids[1] = '';
   if (strstr($style,'sequence')) {
     if ($lastSecId != $Seq->allids) { // сериал поменялся
       if ($lastSecId = $Seq->allids) { // на непустой
-         $sec = "<h6>";
          for ($i = 0; $ss = $Seq->ids[$i]; $i++) {
            if (strstr($style,'checkbox')) $sec .= "<input type=checkbox $dis onclick='UCCs(this.checked, $ss->SeqId)'>";
-           $sec .= "<a class=sequence href=/s/$ss->SeqId>$ss->SeqName</a></h6>\n" ;
+           if (strstr($style,'sequencen') && $ss->SeqNumb) $NNN = " - $ss->SeqNumb";
+           $sec .= "<a href=/s/$ss->SeqId><h8>$ss->SeqName</h8></a>$NNN<br>\n" ;
          }  
       } else { // на пустой - если не менялся жанр, добавим пустую строчку
          if (!$g) $sec = '<br>';
@@ -372,20 +470,19 @@ function DoLibRow ($b, $style='') {
     } else { // сериал не менялся
       if ($Seq->allids) $g = ''; 
     } 
-    $r .= $sec;
+    $g .= $sec;
     $nn = $Seq->ids[0]->SeqNumb;
     $sec = $nn > 0 ? "$nn. " : '';
     $secname = '';
   } else {
     $ss = $Seq->ids[0];
     if ($ss->SeqId > 100) 
-      $secname = " (<a href=/s/$ss->SeqId>$ss->SeqName</a>".($ss->SeqNumb>0 ? "-$ss->SeqNumb" : '').") ";
+      $secname = " (<a href=/s/$ss->SeqId><h8>$ss->SeqName</h8></a>".($ss->SeqNumb>0 ? "-$ss->SeqNumb" : '').") ";
   }
- 
-  if ($edit) {
-    $r .= '<tr><td>';
-    if ($g) $g = '<tr><td>'.$g;
-  }  
+
+  if (!$r) {  // начали собирать
+
+  if ($edit) $r .= '<tr><td>';
 
   if ($style != 'rateonly') {
     $q = bookquality($b);
@@ -405,66 +502,112 @@ function DoLibRow ($b, $style='') {
     }  
     $rt .= "</select>";
     if ($style == 'rateonly') return $rt;
-    $r .= $rt;
+    $r .= "<place for rate>";
   }
   if ($style == 'rateonly') return '';
   $ast = ''; // список авторов
   if (strstr($style,'authors')) {
     $sth = SELECT ("AvtorId FROM libavtor WHERE BookId = $b LIMIT 5");
-    while ($a2 = dbf($sth)) $ast .= ' - '.avl($a2->AvtorId);
+    while ($a2 = dbf($sth)) {
+      if (!$a) $a = $a2->AvtorId;
+      $ast .= ' - '.avl($a2->AvtorId);
+    }  
   } elseif (strstr($style,'author')) {
     $sth = SELECT("AvtorId, LastName FROM libavtorname JOIN libavtor USING (AvtorId) WHERE BookId = $b LIMIT 1");
     $a2 = dbf($sth);
     $ast = " - <a href=/a/$a2->AvtorId>$a2->LastName</a>";
+    if (!$a) $a = $a2->AvtorId;
   }
   $tp = $a1->FileType;
 
   if (strstr($style,'checkbox')) {
-    if ($a1->Deleted != 7) {
-      $r .= "<input type=checkbox $dis id='$predgen-$seq' name=$b>";
-    }  
+    if ($a1->Deleted != 7) 
+      $r .= "<input type=checkbox $dis id='$predgen-".trim($Seq->allids)."' name=$b>";
     elseif (!$edit) $r .= '&nbsp; &nbsp; &nbsp; ';
   }  
 
   $size = (integer)($a1->FileSize/1024).'K';  
   
+  $title = $a1->Title;
+  if (!strstr($style,'nolink')) $title .= "</a>";
+  if ($a1->Title1) $title .= " [$a1->Title1]";
+  if (!strstr($style,'notrans')) {
+    $sth = SELECT("TranslatorId FROM libtranslator WHERE BookId = $b LIMIT 2");
+    while ($at1 = dbf($sth)) {
+      if ($transid) $trans2id = $at1->TranslatorId;
+      else $transid = $at1->TranslatorId;
+    }
+    if ($transid) {
+      $title .= " (пер. ".avl($transid);
+      if ($trans2id) $title .= ", ...)";
+      else $title .= ")";
+    }  
+  }  
   if (strstr($style,'nolink')) { // без ссылки, используется на страничке книги
-    $r .= "$a1->Title <span style=size>$size</span> ";
+    $r .= "$title <span style=size>$size</span> ";
     if ($dwncnt) $r .= "(книга прочитана $dwncnt раз)";    
-  } else {
+  } else { // c cсылкой
     if ($dwncnt) $size .= " ($dwncnt)";
-    $r .= " - $sec <a href=/b/$b>$a1->Title</a> $secname <span style=size>$size</span>";      
+    $r .= " - $sec <a href=/b/$b>$title $secname <span style=size>$size</span>";      
   }
 
   if ($a1->Deleted != 7) {
-    if ($tp == 'fb2')
+    if ($tp == 'fb2') {
       if (!strstr($style,'noread')) 
         $r .= " &nbsp; <a href=/b/$b/read>(читать)</a> &nbsp; <a href=/b/$b/download>(скачать)</a> ";
       else   
         $r .= " <a href=/b/$b/download>(скачать)</a> ";
-    else 
+      if (strstr($style,'seltype')) $r .= ' '.libSelectFileType();     
+    } else {
       $r .= " <a href=/b/$b/download>(скачать $tp)</a> ";
+    }  
     $corr = " <a href=/b/$b/edit>(исправить)</a> ";
-    $r .= $ast;
-    if ($edit) $r.=  "<td>".delbooklink($b, $a1->Title)."<td>$corr<td>";
+    if ($edit) {
+      $r.=  "$ast<td>".delbooklink($b, $title)."<td>$corr<td>";
+    } else {
+      static $divn;
+      if ($a1->FileSize > 55553 && !Sel("BookId FROM `libtopadvert` WHERE BookId = $b")) {
+        if (!$a) $a = $a1->a;
+        if (!$a) $a = Sel("AvtorId FROM libavtor WHERE BookId = $b LIMIT 1");
+        $r .= "
+<textarea id=topadvert_open_div_$b disabled=true style='display: none'>
+title: Купить <b>$a1->Title</b>:
+feed_id: 2942
+pattern_id: 317
+format: 2
+book_author: ".AvtorName($a)."
+book_name: $a1->Title
+</textarea>
+&nbsp;
+<a href='' onmouseover=\"topadvert_open_div('topadvert_open_div_$b', event);\" onmouseout=\"topadvert_close_div('topadvert_open_div_$b')\" onclick=\"return false;\">(купить)</a>
+";
+      }
+      $r .= $ast;
+    }
   }
   if ($a1->Deleted == 7) $r .= " (книга удалена из библиотеки)";
   if ($sa && strstr($style,'annotation')) {
     $ann = ReadAnnotation($b, $nid);
     if ($ann) $r .= "<p>$ann</p>";
   }  
-  if (!$ann && !$edir && !strstr($style, 'nobreak')) $r .= '<br>';
-  return "$g$r\n";
+    if (!$ann && !$edit && !strstr($style, 'nobreak')) $r .= '<br>';
+    if ($cid) {
+      apc_inc('Dolibrow Added');
+      libcs($cid, $r, "b$b");
+    }  
+  }
+  return $g.str_replace("<place for rate>", $rt, $r)."\n";
 }
 
 function delbooklink ($b, $t) {
   $t = preg_replace ("/'/",'',$t);
+  $t = preg_replace ('/"/','',$t);
   return " (<a href=\"javascript:cnf('Вы уверены в необходимости удаления из библиотеки книги $t?', '/b/$b/delete')\">удалить</a>) ";
 }
 
-function DoGenreRow ($b) {
-  Global $predgen;
-  $g = Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libgenre WHERE BookId = $b"); 
+function DoGenreRow($b, $g = '') {
+  Global $predgen, $user;
+  if (!$g) $g = Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libgenre WHERE BookId = $b"); 
   if ($predgen == $g) return '';
   $predgen = $g;
   $res = '<p class=genre>';
@@ -472,25 +615,25 @@ function DoGenreRow ($b) {
     $a1 = S("GenreDesc, GenreCode FROM libgenrelist WHERE GenreId = '$gn'");
     $res .= "<a name=$a1->GenreCode><a class=genre href=/g/$a1->GenreCode>$a1->GenreDesc</a> &nbsp; ";
   }
-  $GenreRowWas = 1;
   return "$res</p>\n";
 } 
 
 function avl($a, $t=' ', $o='') {  
   if ($o == 'cnt') $cnt = '('.Sel("SQL_CACHE count(*) FROM libbook JOIN libavtor USING(BookId) WHERE AvtorId = $a AND NOT Deleted&1").')'; 
-  return "<a href=/a/$a>".AvtorName($a, $t)."</a>$cnt"; 
+  if ($t == '&nbsp;') {
+    $an = str_replace(' ', $t, AvtorName($a, ' '));
+  } else {
+    $an = AvtorName($a, $t);
+  }
+  return "<a href=/a/$a>$an</a>$cnt"; 
 }
 
 function bl($b) {  
   return "<a href=/b/$b>".Sel("Title FROM libbook WHERE BookId = $b")."</a>"; 
 }
 
-function avl1($a) {  
-  $an = Sel ("CONCAT_WS(' ', LastName, FirstName, MiddleName ) from libavtorname WHERE AvtorId = $a");
-  $nick = Sel ("NickName from libavtorname WHERE AvtorId = $a");
-  if ($nick) $an .= " ($nick)";
-  $an = preg_replace('/>/','&gt;',$an);
-  $an = preg_replace('/</','&lt;',$an);
+function avl1($a) {  // Фамилия, имя, отчество.
+  $an = AvtorName($a, ' ', 1);
   return "<a href=/a/$a>$an</a> "; 
 }
 
@@ -648,23 +791,33 @@ function SelectBookSubmit($proc, $skip) {
   return "Книга найдена. Ткните в неё, если если это то, что нужно".$r;
 }
 
+function libAddImagesToNode($nid) {
+  if (!$nid) return '';
+  $ann = Sel("body FROM node_revisions WHERE nid = $nid ORDER BY vid DESC");
+  $sth = SELECT("filepath FROM `upload` JOIN files USING(fid) WHERE `nid` = $nid AND filemime LIKE 'image%'");
+  while ($f=db_result($sth))  
+    if (!strstr($ann, $f)) {
+      if ($img) $img .= " &nbsp ";
+        $img .= '<img src="/'.$f.'" align=left style="border:5px solid #ededed; margin: 12px;">';
+//    $ann = str_replace(array("[img]http://lib.rus.ec/".$f."[/img]", "[img]/".$f."[/img]",  "[img align=left]".$f."[/img]",  "[img=right]http://lib.rus.ec/".$f."[/img]"), '', $ann);
+    }
+  return $img.check_markup($ann);
+}
+
 function ReadAnnotation($b, &$nid='') {
   if (!Sel("BookId FROM libcache WHERE BookId = $b")) {
     unset ($GLOBALS['PD']);
     libRead($b);
   }
   $nid = Sel("nid FROM libbnode WHERE BookId = $b");
-  if (!$nid) $nid = Sel("nid FROM node WHERE type = 'bdesc' AND title = $b");
-  if (!$nid) return;
-  $a1 = S ("teaser, body FROM node_revisions WHERE nid = $nid ORDER BY vid DESC");
-  return check_markup($a1->body);
+  if (!$nid) $nid = Sel("nid FROM node force KEY(node_title_type) WHERE title = $b AND type = 'bdesc'");
+  return libAddImagesToNode($nid);
 }
 
 function ReadAvtorPage($a, &$nid) {
   $nid = Sel("nid FROM libanode WHERE AvtorId = $a");
-  if (!$nid) $nid = Sel("nid FROM node WHERE type = 'adesc' AND node.title = $a");
-  if ($nid) $ann = check_markup(Sel("body FROM node_revisions WHERE nid = $nid"));
-  return $ann;
+  if (!$nid) $nid = Sel("nid FROM node WHERE node.title = $a AND type = 'adesc'");
+  return libAddImagesToNode($nid);
 }
 
 function ptm($t) {
@@ -685,8 +838,8 @@ function MakeFileName($b) {
 
 function Undellink($b) {
   if (Sel("Deleted&1 FROM libbook WHERE BookId = $b") != 1) return '';
-  if ($newb = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b"))
-    return "<h4>Книга $b заменена на <a href=/b/$newb>исправленную</a></h4>\n";
+  if ($newb = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b")) 
+    return "<h4>Книга $b заменена на <a href=/b/$newb>исправленную</a> <a href=/b/$b/delalias/$newb>(удалить связь)</a></h4>\n";
   return "<h4>Книга $b удалена из библиотеки. <a href=/b/$b/undel>(восстановить)</a> <a href=/b/$b/join>(указать правильную)</a></h4>\n";
 }  
 
@@ -771,13 +924,14 @@ function AnnChkbox($onClick = "submit()") {
 *******************************************************************************************/
 function libOpenCacheFile($CacheFile, $tm) {
   Global $user, $rd, $key;
-  if ($user->uid != 1 && !$rd && file_exists($CacheFile) && (time() - 1*filemtime($CacheFile) < $tm || LA() > 1)) return 0;
-  $key = sem_get(abs(crc32($CacheFile) % 5) + 6, 10);
+  $CacheIsPossible = $user->uid != 1 && !$rd && file_exists($CacheFile);
+  if ($CacheIsPossible && (time() - 1*filemtime($CacheFile) < rand($tm, 1.2*$tm) || LA() > 1)) return 0;
+  $key = sem_get(abs(crc32($CacheFile) % 5) + 6, 30);
   if (!sem_acquire($key)) {
     $key = 0;
     return 0;
   }  
-  if ($user->uid != 1 && !$rd && file_exists($CacheFile) && (time() - 1*filemtime($CacheFile) < $tm || LA() > 1)) return 0;
+  if ($CacheIsbossiple && (time() - 1*filemtime($CacheFile) < $tm || LA() > 1)) return 0;
   return fopen($CacheFile, 'w');
 }
 
@@ -804,9 +958,6 @@ function libRSS($CacheFile, $hours, $name, $link, $join, $where) {
   if ($name) $name = "- $name";
   if ($fh = libOpenCacheFile($CacheFile, 3600*$hours)) {
     $host = preg_replace('/^www./','',$_SERVER['HTTP_HOST']);
-    if ($host == 'lib7.rus.ec' or $host == 'lib6.rus.ec' or $host == 'lib5.rus.ec'
-    or $host == 'lib4.rus.ec' or $host == 'lib1.rus.ec' or $host == '89.248.165.5') 
-       $host = 'lib.rus.ec';
     fwrite($fh, '<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0">
 <channel>
@@ -819,8 +970,8 @@ function libRSS($CacheFile, $hours, $name, $link, $join, $where) {
         $b = $a1->BookId;
         $a = AvtorName(Sel("AvtorId FROM libavtor WHERE BookId = $b"));
         $g = Sel ("GenreDesc FROM libgenre JOIN libgenrelist USING(GenreId) WHERE BookId = $b");
-        $an = preg_replace('/<[^>]+>/',' ',ReadAnnotation($b,$nid));
-        fwrite($fh, "<item>\n<title>$a1->Title - $a - $g</title>\n<link>http://$host/b/$a1->BookId</link>\n<guid>http://$host/b/$a1->BookId</guid>\n<pubDate>$a1->T GMT</pubDate>\n<description>$an</description>\n</item>\n");
+        $an = check_plain(ReadAnnotation($b,$nid));
+        fwrite($fh, "<item>\n<title>".check_plain("$a1->Title - $a - $g")."</title>\n<link>http://$host/b/$a1->BookId</link>\n<guid>http://$host/b/$a1->BookId</guid>\n<pubDate>$a1->T GMT</pubDate>\n<description>$an</description>\n</item>\n");
       }
     fwrite($fh, "</channel>\n</rss>\n");      
     fclose($fh);
@@ -838,13 +989,17 @@ function BlockUserNah() {
   Insert('users_roles', 'uid, rid', "$user->uid, 4");
 }
 
-function bookquality($b) {
-  $cid = 'libquality'.$b;
-  if ($cache = cache_get($cid, librusec)) return $cache->data;
+function bookquality($b, $reset = 0) {
+  if ($reset) libsettag("b$b");
+  $cid = 'q'.$b;
+  if ($q = libcg($cid)) 
+    if ($q && !$reset)
+      return $q > 0 ? $q : 0;
   $q2 = Sel ("ROUND(AVG(q),1) FROM libquality JOIN users_roles USING(uid) WHERE BookId=$b AND rid=3"); // мнение админов
   $q3 = Sel ("ROUND(AVG(q),1) FROM libquality WHERE BookId = $b");// общее мнение  
-  $q = $q2 ? $q2 : $q3;  
-  cache_set($cid, $q, librusec);
+  $q4 = $q2 ? $q2 : $q3;  
+  $q = $q4 > 0 ? $q4 : -1;
+  libcs($cid, $q);
   return $q;
 }
 
@@ -856,17 +1011,21 @@ function ul($u) {
 function MakeZipFile($b, $dtp) {
   Global $user;
   $FileName = MakeFileName($b);
-  $zip = "b.$dtp/$FileName.$dtp.zip";
+  $r = "b.$dtp/$FileName.$dtp";
+  if ($dtp == 'epub') {
+   $zip = $r;
+  } else { 
+    $zip = "$r.zip";
+  }  
 //  if (file_exists($zip) && (filemtime($zip) < filemtime("b/$b.fb2") || filemtime($zip) < filemtime("modules/librusec/book.inc") || $user->uid == 1)) unlink ($zip);
   if (file_exists($zip))   
     return $zip;
-  $key = sem_get($b%5 + 1, 10);
+  $key = sem_get($b%5 + 1, 30);
   if (!sem_acquire($key)) return '';
   if (file_exists($zip) && $user->uid != 1) {
     sem_release($key);
     return $zip;
   }
-  $r = "b.$dtp/$FileName.$dtp";
   if ($dtp == 'fb2' || $dtp == '') {
     if (!libGenerateFB2("b/$b.fb2", $r)) 
       exec ("ln b/$b.fb2 \"$r\"");
@@ -874,21 +1033,24 @@ function MakeZipFile($b, $dtp) {
   } else {  
     if ($err = MakeFile($b, "b/$b.fb2", $dtp, $r)) {
       drupal_set_message($err);
-      wachdog('librusec', "Ошибка создания файла $zip: $err");
+      watchdog('librusec', "Ошибка создания файла $zip: $err");
       $zip = '';
     } else { 
-      exec ("zip -j -m \"$zip\" \"$r\"");
-      if ($dtp != 'rtf' && $dtp != 'pdb' && glob("i/".($b%100)."/$b/*")) exec ("zip -j \"$zip\" i/".($b%100)."/$b/*");
+      if ($zip != $r) {
+        exec ("zip -j -m \"$zip\" \"$r\"");
+        if (($dtp == 'txt' || $dtp == 'html') && glob("i/".($b%100)."/$b/*")) exec ("zip -j \"$zip\" i/".($b%100)."/$b/*");
+      }  
     }  
   }  
   sem_release($key);
   return $zip;
 }  
 
-function libWST($b) {
-  if (!(0+$b)) return '';
-  $cid = "libwst$b";
-  if ($r = libcg($cid, 1000000)) return $r;
+function libWST($b, $reset = 0) {
+  if (!$b) return '';
+  $cid = "wst".$b;
+  if ($reset) return libcd($cid);
+  if ($wst = libcg($cid)) return $wst;
   $bb[$b] = 1;
   for ($bn = 0; $bn < count($bb); ) {
     $bn = count($bb);
@@ -899,35 +1061,34 @@ function libWST($b) {
         while ($a2 = dbf($sth)) {
           $b2 = $a2->BadId;
           $bb[$b2] = 1;
-          $wst .= "OR BookId = $b2 ";
+          $wst .= " OR BookId = $b2";
         }  
       }  
     }  
   }
-  return libcs($cid, "(BookId = $b $wst)");
+  return libcs($cid, "(BookId = $b$wst)", "b$b");
 }
 
 function libGetRate($b) {
-  Global $user;
-  $u = $user->uid;
-  if (!$u) return '';
   static $_libgetrate = array();
+  Global $user; $u = $user->uid;
+  if (!$u) return '';
   $cid = "librate$u";
-  if ($_libgetrate[user] == $u) return $_libgetrate[$b];
-  if ($_libgetrate = libcg($cid, 1000000)) return $_libgetrate[$b];
-  $_libgetrate[user] = $u;
-  $sth = SELECT("librate.BookId b, Deleted & 1 d, Rate FROM librate JOIN libbook USING(BookId) WHERE UserId = $u");
-  while ($a1 = dbf($sth)) {
-    $_libgetrate[$a1->b] = $a1->Rate;
-    if ($a1->d) {
-      $b1 = $a1->b;
-      while ($b2 = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b1")) {
-        if (!$_libgetrate[$b2]) $_libgetrate[$b2] = $a1->Rate;
-        else $a1->Rate = $_libgetrate[$b2];
-        $b1 = $b2;
-      }
-    }       
-  }
-  libcs($cid, $_libgetrate); 
-  return $_libgetrate[$b];
+  if (!$_libgetrate['user'])
+    if ($cache = libcg($cid))
+      $_libgetrate = $cache;
+  if ($_libgetrate['norates']) return '';
+  if ($_libgetrate[$b])
+    return $_libgetrate[$b] > 0 ? $_libgetrate[$b] : '';
+  $_libgetrate['user'] = $u;
+  if (Sel("Rate FROM librate WHERE UserId = $u LIMIT 1")) { // у пользователя есть оценки хоть чего-то
+    $r = Sel("Rate FROM librate WHERE UserId = $u AND ".libwst($b)." LIMIT 1");
+    if ($r) $_libgetrate[$b] = $r;
+    else $_libgetrate[$b] = -1;
+  } else { // оценок нет вообще, запомним этот факт чтоб больше не дёргаться
+    $_libgetrate['norates'] = 1;
+    $r = '';
+  }  
+  libcs($cid, $_libgetrate, "b$b"); 
+  return $r;
 }

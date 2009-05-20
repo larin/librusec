@@ -8,7 +8,7 @@ function libBookLib() {
       drupal_goto("book.lib/books/$f");
     if (!$a1 = S("* FROM booklib WHERE Filename LIKE '".addslashes($f)."%'"))
       return "File $f not found in booklib";
-    drupal_goto("http://book.lib.rus.ec/books/$a1->File");    
+    drupal_goto("http://book.lib.rus.ec/books/$a1->Filename");    
   }
 
   if ($aj = $_GET['aj']) {//ajax call
@@ -22,8 +22,7 @@ function libBookLib() {
     if ($t = p('f')) $W .= " AND FileName LIKE '$t%'";
     if ($W) $W = "WHERE 1 $W";
     $sth = pgq("SELECT * FROM booklib $W ORDER BY Title", Sel("count(*) FROM booklib $W"));
-    while ($a1 = dbf($sth)) 
-      printline($a1);
+    while ($a1 = dbf($sth)) print printline($a1);
     print theme('pager');
     exit;
   }

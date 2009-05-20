@@ -3,12 +3,13 @@
 
 /*
 Основной файл библиотечного модуля. Кода практически не содержит. 
-Почти всё вынесено в отдельные файлики. ё1Сделано так исключительно для удобства разработки.
+Почти всё вынесено в отдельные файлики. 
 Общие функции и обёртки - librusec.inc.
 
 Распространяется под GPL. Вопросы и консультации - lib@rus.ec, исключительно на русском языке.
 */
 
+include_once drupal_get_path('module', 'librusec').'/librusec.inc';
 // дефалты
 define('libPP', 50);  //книг на экран, без аннотаций
 define('libPPa', 25);  //книг на экран, с аннотациями
@@ -58,13 +59,13 @@ function librusec_menu() {
 
 //основные входы
   $items['a'] = array('title' => 'Авторы', 'page callback' => 'libAvtor','access arguments' => array('читать книги'), 'file' => 'author.inc', 'weight' => -3);
-  $items['book'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc', 'weight' => -2);
+  $items['b'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc', 'weight' => -2);
   $items['g'] = array('title' => 'Жанры',  'page callback' => 'libGenre','access arguments' => array('читать книги'), 'file' => 'genre.inc', 'weight' => -4);
   $items['s'] = array('title' => 'Сериалы','page callback' => 'libSeq',  'access arguments' => array('читать книги'), 'file' => 'tools.inc', 'weight' => 1);
 
 //синонимы
   $items['author'] = array('title' => 'Авторы', 'page callback' => 'libAvtor','access arguments' => array('читать книги'), 'file' => 'author.inc',  'type' => MENU_CALLBACK);
-  $items['b'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc',  'type' => MENU_CALLBACK);
+  $items['book'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc',  'type' => MENU_CALLBACK);
   $items['books'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc',  'type' => MENU_CALLBACK);
   $items['genre'] = array('title' => 'Жанры',  'page callback' => 'libGenre','access arguments' => array('читать книги'), 'file' => 'genre.inc',  'type' => MENU_CALLBACK);
   $items['sequence'] = array('title' => 'Сериалы','page callback' => 'libSeq',  'access arguments' => array('читать книги'), 'file' => 'tools.inc',  'type'  => MENU_CALLBACK);
@@ -105,35 +106,47 @@ function librusec_block($op='list', $delta='', $edit = array()) {
   Global $buke, $bukr, $user;    
   if ($op == 'list') 
     return array('polka' =>      array ('info' => 'Впечатления о книгах', 'weight' => 10, 'status' => 1, 'region' => 'right'),
-                 'abc'   =>      array ('info' => 'Линейка буковок',      'weight' => -6, 'status' => 1, 'region' => 'right'),
-                 'booksearch' => array ('info' => 'Поиск книг',           'weight' => -5, 'status' => 1, 'region' => 'right'));
+                 'abc'   =>      array ('info' => 'Линейка буковок',      'weight' => -6, 'status' => 1, 'region' => 'top'),
+                 'booksearch' => array ('info' => 'Поиск книг',           'weight' => -5, 'status' => 1, 'region' => 'right'),
+                 'new' =>        array ('info' => 'Новые книги',           'weight' => 5, 'status' => 1, 'region' => 'right'),
+                 'bestb' =>      array ('info' => 'Популярные книги',      'weight' => 8, 'status' => 1, 'region' => 'right'),
+                 'besta' =>      array ('info' => 'Популярные авторы',     'weight' => 7, 'status' => 1, 'region' => 'right'),
+                 'bestw' =>      array ('info' => 'Топ недели',            'weight' => 6, 'status' => 1, 'region' => 'right'),
+                 );
 
   switch ("$op.$delta") {
     case 'view.polka':
       $limit = variable_get('librusec_annN', 10);
       if ($limit < 5) $limit = 10;
       $limit = " Text != '' AND Flag = '' ORDER BY ID DESC LIMIT ".$limit; 
+      $cid = "blockpolka";
       if ($user->uid) 
         $mode = db_result(db_query("SELECT bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $user->uid));
       if ($mode == 'w') {
         $sth = db_query ("SELECT * FROM libpolka JOIN {bwlist} ON (UserId=uid2) WHERE uid=%d AND bw='w' AND $limit", $user->uid);
+        $cid .= 'b'.$user->uid;
       } elseif ($mode == 'b') {
         $bl .= bwlist_makewhere('UserId');
         if ($bl) $limit = "$bl AND $limit"; 
         $sth = db_query ("SELECT * FROM libpolka WHERE $limit");
+        $cid .= 'b'.$user->uid;
       } else 
         $sth = db_query ("SELECT * FROM libpolka WHERE $limit");
-       
-      while ($a1 = db_fetch_object($sth)) {
-        $u = $a1->UserId;
-        $username = db_result(db_query("SELECT name FROM users WHERE uid = $u"));
-        $book = db_result(db_query("SELECT Title FROM libbook WHERE BookId = $a1->BookId"));
-        $a = db_result(db_query("SELECT AvtorId FROM libavtor WHERE BookId = $a1->BookId"));
-        $an = db_result(db_query("SELECT LastName FROM libavtorname WHERE AvtorId = $a"));
-        $t = preg_replace('/\n/', '<br>', stripslashes($a1->Text));
-        $r .= bwlist_icons($u)."<b><a href=/polka/show/$u>$username</a></b> ".
+
+      $r = libcg($cid);
+      if (!$r) {
+        while ($a1 = db_fetch_object($sth)) {
+          $u = $a1->UserId;
+          $username = Sel("name FROM users WHERE uid = $u");
+          $book = Sel("Title FROM libbook WHERE BookId = $a1->BookId");
+          $a = Sel("AvtorId FROM libavtor WHERE BookId = $a1->BookId");
+          $an = Sel("LastName FROM libavtorname WHERE AvtorId = $a");
+          $t = preg_replace('/\n/', '<br>', stripslashes($a1->Text));
+          $r .= bwlist_icons($u)."<b><a href=/polka/show/$u>$username</a></b> ".
               "про <a href=/a/$a>$an</a>: <a href=/b/$a1->BookId>$book</a><br>$t<hr>\n";
-      }   
+        }   
+        libcs($cid, $r, polka);
+      }  
       $r .= "<a href=/polka/show/all>Все впечатления</a>";
     return array ('subject' => '<a href=/polka/show/all>Впечатления о книгах</a>', 'content' => $r, 'cache' => BLOCK_CACHE_PER_USER);
         
@@ -156,6 +169,13 @@ function librusec_block($op='list', $delta='', $edit = array()) {
       
     case 'view.booksearch':
       return array ('content' => "<form action=/booksearch>Поиск книг: <input name=ask value='$asc'><input type=submit value='искать!'></form>");
+      
+    case 'view.besta':
+    case 'view.bestb':
+    case 'view.bestw':
+    case 'view.new':
+      include_once drupal_get_path('module', 'librusec').'/stat.inc';
+      return array('content' => libstatblock($delta));
   }
 }
 
@@ -299,16 +319,21 @@ function librusec_search($op = 'search', $keys = null) {
 
 function librusec_user($op, &$edit, &$u) {
   if ($op != 'view') return;
-  $u->content['summary']['lib'] =  array(
-      '#type' => 'user_profile_item',
-      '#title' => t('Книжная полка'),
-      '#value' => "<a href=/polka/show/$u->uid>Оценённые книги</a>"
-  );
   if (user_access('библиотекарь')) 
   $u->content['summary']['lib1'] =  array(
       '#type' => 'user_profile_item',
       '#title' => t('Деятельность'),
       '#value' => "<a href='/stat/edit/".urlencode($u->name)."'>Просмотр работы</a>"
+  );
+  $u->content['summary']['comments'] =  array(
+      '#type' => 'user_profile_item',
+      '#title' => t('Деятельность'),
+      '#value' => "<a href=/tracker/comments/$u->uid>Посмотреть последние комментарии</a>"
+  );
+  $u->content['summary']['lib'] =  array(
+      '#type' => 'user_profile_item',
+      '#title' => t('Книжная полка'),
+      '#value' => "<a href=/polka/show/$u->uid>Оценённые книги</a>"
   );
   if ($a1 = db_fetch_object(db_query("SELECT * FROM `libavtorname` WHERE uid = %d", $u->uid))) {
     $u->content['summary']['lib2'] =  array(
@@ -320,12 +345,19 @@ function librusec_user($op, &$edit, &$u) {
 }
 
 function librusec_cron() {
-  $tm = db_result(db_query("SELECT SUBDATE(NOW(), 7)"));  
-  $sth = db_query("SELECT CONCAT(substr(time,3,2),substr(time,6,2)) AS Mes, BookId, SUM(1) AS N FROM `liblog` WHERE Time < '%s' GROUP BY BookId", $tm);
+  $tm = Sel("SUBDATE(NOW(), 7)");
+  $sth = SELECT("CONCAT(substr(time,3,2),substr(time,6,2)) AS Mes, BookId, SUM(1) AS N FROM `liblog` WHERE Time < '%s' GROUP BY BookId", $tm);
   while ($a1 = db_fetch_object($sth)) {
-    $n1 = db_result(db_query("SELECT N FROM libstat WHERE Mes = '%s' AND BookId = %d", $a1->Mes, $a1->BookId));
+    $n1 = Sel("N FROM libstat WHERE Mes = '%s' AND BookId = %d", $a1->Mes, $a1->BookId);
     if ($n1) db_query("UPDATE libstat SET N = ".($n1+$a1->N)." WHERE Mes = '%s' AND BookId = %d", $a1->Mes, $a1->BookId);
     else db_query("INSERT INTO libstat (BookId, Mes, N) Values (%d, '%s', %d)", $a1->BookId, $a1->Mes, $a1->N);
     db_query("DELETE FROM `liblog` WHERE Time < '%s' AND BookId = %d", $tm, $a1->BookId);
   }
+  db_query('DELETE FROM libtopadvert WHERE Time + 333333 < NOW()'); 
+}
+
+function librusec_update($node) {
+  $b = Sel("BookId FROM libbnode WHERE nid = %d", $node->nid);
+  if (!$b) $b = $node->title*1;
+  if ($b) libsettag("b$b");
 }

@@ -1,6 +1,24 @@
 <?php
 include_once drupal_get_path('module', 'librusec') .'/librusec.inc';
 
+function libDonateAdd($cod, $sum, $pt) {
+  static $paitype;
+  if (!$pt) $pt = $paytype;
+  else $paytype = $pt;
+  preg_match('/u(\d+)t(\d)a(\d+)/',$cod,$m);
+  if (!$m[3]) preg_match('/u(\d+)t(\d)/',$cod,$m);
+  $sum = (integer)($sum*100);
+  $pt = strtolower($pt);
+  if ($sum > 0 && $m[2] > 0) {
+    Insert(libdonations, 'uid,Sum,Type,AvtorId,PayType',"$m[1], $sum, $m[2], '$m[3]','$pt'");
+    if ($sum > 999) Update(users, 'noadv=1', "uid = $m[1]");
+  } else {
+    print "libDonateAdd($cod, $sum, $pt)<br>";
+    print "  if ($sum > 0 && $m[2] > 0) ";
+    exit;
+  }
+}
+
 function LibDonate() {
   if ($_GET['stat']=='paid') lgo ("donate/stat/paid");
   drupal_add_js('modules/librusec/md5.js');
@@ -12,15 +30,18 @@ function LibDonate() {
       Update (libavtorname, 'NoDonate=1',"AvtorId=$a");
       lgo("/a/$a");
     }  
-    if ($cod = $_GET[code]) {
-      preg_match('/u(\d+)t(\d)a(\d+)/',$cod,$m);
-      if (!$m[3]) preg_match('/u(\d+)t(\d)/',$cod,$m);
-      $sum = (integer)($_GET[sum]*100);
-      $pt = strtolower($_GET[paytype]);
-      if ($sum > 0 && $m[2] > 0) {
-        Insert(libdonations, 'uid,Sum,Type,AvtorId,PayType',"$m[1], $sum, $m[2], '$m[3]','$pt'");
-        if ($sum > 999) Update(users, 'noadv=1', "uid = $m[1]");
-      }  
+    if ($_GET[sum] && $_GET[paytype]) {
+      $cod = $_GET[code];
+      if (!$cod) $cod = 'u0t4a';
+      libDonateAdd($cod, $_GET[sum], $_GET[paytype]);
+      lgo("/donate/stat/paid");
+    }
+    if ($cod = $_POST['codes']) {
+      foreach (split("\n", $cod) as $l) {
+         $q = preg_split('/\s+/', $l);
+         for ($i=0;$i<3;$i++) $q[$i] = trim($q[$i]);
+         libDonateAdd($q[1], $q[0], $q[2]);
+      }
       lgo("/donate/stat/paid");
     }
     if (arg(1) == 'paid' && ($a = arg(2)) && ($s = arg(3))) {
@@ -31,22 +52,24 @@ function LibDonate() {
     $paid = "<tr><td>9.<input type=radio name=tp value=9 onChange=FF()>Переведено <input type=button onClick=SavePaid() value='Переведено по назначению'></tr>";
   }  
 
-  if (arg(1) == 'stat') {// статистика разнообразная
-    $act = arg(2);
-    if ($act == 'paid' || $act == '4avt')
-      if (!$user->uid || (!Sel("uid FROM libdonations WHERE uid = $user->uid") && !Sel("uid FROM libavtorname WHERE uid = $user->uid"))) 
-        return "Статистика видна только участникам - тем, кто платил, и авторам.
+  if (arg(1) == 'stat') {
+    if (!($user->uid > 0 && (Sel("uid FROM libdonations WHERE uid = $user->uid") || Sel("uid FROM libavtorname WHERE uid = $user->uid")))) 
+      return "Статистика видна только участникам - тем, кто платил, и авторам.
 <br>Новые платежи обрабатываются с задержкой до одного дня по техническим причинам.
 <br>Если Вы автор - сообщите мне свой логин и я открою для Вас тоже. 
-Если нет - переведите хотя бы один цент.";
+<br>Если нет - переведите хотя бы один цент.";
 
-    switch ($act) { 
+    switch (arg(2)) { 
       case '4avt':
         return libdonate4avt();
       case avtors: 
         return libdonateparts();
       case paid:
         return libdonatepaid();
+      case table:
+        return libdonatetable();  
+      case mes:
+        return libdonatepaid(arg(3));
       default:
         return "Непонятная метка `$act`"  ;
      }   
@@ -55,12 +78,19 @@ function LibDonate() {
   if (arg(1) == 'SMS') {      
     return libDonateSMS();
   }
+  if (arg(1) == 'sms') {      
+    return libDonateSMS1();
+  }
 //Формочка сбора денег
 
-  $crc = md5("librusec:10:0:1a1a1a1a:shp_item=2"); 
   if (arg(2) == 'author' && ($a = arg(3))) $checked = 'checked';
-  $r .=  "<script><!--\nvar u='$u'\n";
-  $r .=  '
+  $crc = md5("librusec:20:0:1a1a1a1a:shp_item=2"); 
+  $t = $a ? 1 : 4;
+  $sms1 = $user->uid*1000000+$a+$t*1000000000000;
+  $desc = $u."t$t"."a$a";
+  $crc1 = md5("4281::$sms1::20::1::$desc::1");
+  return "<script><!--\nvar u='$u'\nvar uid=$user->uid\n".
+'
 var f,a,la,d,aid,s,t=4,w;
 var q = new Array();
 function FF(p) {
@@ -83,9 +113,12 @@ function FF(p) {
   for (k=0;d[k];k++) {
    id=d[k].id;
    desc=u+"t"+t+"a"+aid;
+   smsid=uid*1000000+1*aid+t*1000000000000;
+   if (id=="smsid") d[k].value=smsid;
    if (id=="sum") d[k].value=s;
    if (id=="desc") d[k].value=desc;
    if (id=="crc") d[k].value=hex_md5("librusec:"+s+":0:1a1a1a1a:shp_item=2");
+   if (id=="crc1") d[k].value=hex_md5("4281::"+smsid+"::"+s+"::1::"+desc+"::1");
    if (id=="sms") d[k].value="hmlib "+desc;
   } 
  }     
@@ -117,7 +150,7 @@ $paid
 <br><br>
 <b>Принимаются:</b>
 
-<table><tr>
+<table border=3 bordercolor=gray><tr>
 <th>MoneyBookers
 <th>PayPal
 <th>WU
@@ -126,11 +159,13 @@ $paid
 <th>SMS
 <th>Прочие
 <tr>
-<td>(банковский перевод)
+<td>(кредитки, переводы)
 <td>(кредитки)
 <td>(наличные)
 <td>
 <td>
+"//<td>(50 стран)
+."
 <td>(РФ, Казахстан, Украина) 
 <td>(обменник)
 <tr>
@@ -141,7 +176,7 @@ $paid
 <input type=hidden name=language value='РУС'>
 <input type=hidden name=amount value=10 id=sum>
 <input type=hidden name=currency value=USD>
-<input type=hidden name=detail1_description id=desc value=$u>
+<input type=hidden name=detail1_description id=desc value=$desc>
 <input type=hidden name=detail1_text value='Пожертвование'>
 <input type=submit value='Заплатить'>
 </form>
@@ -150,7 +185,7 @@ $paid
 <input type=hidden name=cmd value=_xclick>
 <input type=hidden name=business value='larin@linuxcentro.com'>
 <input type=hidden name=item_name value=Librusec>
-<input type=hidden name=item_number id=desc value=$u>
+<input type=hidden name=item_number id=desc value=$desc>
 <input type=hidden name=no_shipping value=1>
 <input type=hidden name=return value=http://lib.rus.ec/>
 <input type=hidden name=cancel_return value=http://lib.rus.ec/>
@@ -164,12 +199,26 @@ $paid
 Z630179967226<br>R377382658187 
 <form action=https://merchant.webmoney.ru/lmi/payment.asp method=POST>
  <input type=hidden name=LMI_PAYMENT_AMOUNT value=10 id=sum>
- <input type=hidden name=LMI_PAYMENT_DESC value=$u id=desc>
+ <input type=hidden name=LMI_PAYMENT_DESC value=$desc id=desc>
  <input type=hidden name=LMI_PAYEE_PURSE value=Z630179967226>
  <input type=submit value='Заплатить'>
 </form>
 <td valign=top>
 librusec@yandex.ru<br>41001171734018
+"
+/*
+<td valign=top>
+<form action=http://2a95.bank.smscoin.com/bank/ method=POST>
+<input name=s_purse type=hidden value=4281 />
+<input name=s_order_id type=hidden id=smsid value=$sms1/>
+<input name=s_amount type=hidden value='10.0' id=sum />
+<input name=s_clear_amount type=hidden value=1 />
+<input name=s_description type=hidden id=desc value=$desc />
+<input name=s_sign type=hidden id=crc1 value='$crc1' />
+<input type=submit value='Послать' />
+</form>
+*/
+."
 <td valign=top>
 <form>Пришлите слово <input readonly id=sms value=hmlib><br>на номер 4161($4,75).</form>
 <td>
@@ -177,7 +226,7 @@ librusec@yandex.ru<br>41001171734018
 <input type=hidden name=mrh value=librusec>
 <input type=hidden name=out_summ value=10 id=sum>
 <input type=hidden name=inv_id value=0>
-<input type=hidden name=inv_desc value=$u id=desc>
+<input type=hidden name=inv_desc value=$desc id=desc>
 <input type=hidden name=crc value=$crc id=crc>
 <input type=hidden name=shp_item value=2>
 <input type=submit value='Заплатить'>
@@ -185,6 +234,7 @@ librusec@yandex.ru<br>41001171734018
 
 <tr><td colspan=3 align=center>
 <form>Просьба при переводе указывать код: <input readonly id=desc></form>
+<td colspan=4>
 </table>
 <br>
 <h4>Подписка</h4>
@@ -196,7 +246,7 @@ librusec@yandex.ru<br>41001171734018
 <input type=hidden name=cmd value='_xclick-subscriptions'>
 <input type=hidden name=business value='larin@linuxcentro.com'>
 <input type=hidden name=item_name value=Librusec>
-<input type=hidden name=item_number id=desc value=$u>
+<input type=hidden name=item_number id=desc value=$desc>
 <input type=hidden name=no_shipping value=1>
 <input type=hidden name=no_note value=1>
 <input type=hidden name=currency_code value=USD>
@@ -210,16 +260,33 @@ librusec@yandex.ru<br>41001171734018
 </form>
 <br><br>
 <br><b><a href=/donate/stat/paid>Полученные платежи</a></b>
+<br><b><a href=/donate/stat/table>Сводная таблица</a></b>
 <br><b><a href=/donate/stat/4avt>Распределение по авторам</a></b>
 <script><!-- 
 document.onload=FF(0) 
 --></script>";
 
-return $r;
-
 //http://lib.rus.ec/donate/wm/OK?LMI_PAYMENT_NO=0&LMI_SYS_INVS_NO=228&LMI_SYS_TRANS_NO=489&LMI_SYS_TRANS_DATE=20071129+02%3A47%3A17&=
 //Webmoney Z630179967226, R377382658187<br>
 
+}
+
+function libdonatetable($mes = '') {
+  Global $user;
+  set_title('Полученные платежи');
+  $sth = SELECT ("SUM(Sum) s, substr(time, 1, 7) t, type FROM `libdonations` GROUP BY 2,3 ORDER BY 2 DESC, 3");
+  $r = "<table><tr><th>Месяц<th>Автору<th>Авторам<th>Библиотеке<th>Всего\n";
+  while ($a1 = dbf($sth)) {
+    if ($last != $a1->t) {
+      if ($last) $r .= "<tr><td><a href=/donate/stat/mes/$last>$last</a><td>$s[1]<td>$s[3]<td>$s[4]<td>$$s[5]";
+      $last = $a1->t;
+      $s = array();
+    }
+    $v = (int)($a1->s/100 + .49);
+    $s[$a1->type] = '$'.$v;
+    $s[5] += $v;
+  }
+  return $r."<tr><td><a href=/donate/stat/mes/$last>$last</a><td>$s[1]<td>$s[3]<td>$s[4]<td>$$s[5]</table>";
 }
 
 function libdonate4avt() {
@@ -288,11 +355,21 @@ function libdonateparts() {
   return $r;
 }    
     
-function libdonatepaid() {
-  if (SuperUser()) 
-  $r = "Добавить в статистику <form action=/donate><input name=code> <input name=sum value=10> <input name=paytype value=paypal> <input type=submit></form>";
-  set_title ("Полученные платежи");
-  $sth = pgq ("SELECT *, DATE_FORMAT(Time,'%e %c') as dt FROM libdonations WHERE Type < 5 ORDER BY 1 DESC", Sel ("COUNT(*) FROM libdonations"));
+function libdonatepaid($mes = '') {
+  if (SuperUser()) {
+    $r = "Добавить в статистику Код - Сумма - Система<form action=/donate><input name=code> <input name=sum value=10> <input name=paytype value=paypal> <input type=submit></form>";
+    $r .= "<form action=/donate method=POST><p>Платёж на строчку, Сумма Код Система, через пробел</p><textarea rows=5 cols=66 name=codes></textarea><input type=submit></form>";
+  }
+  
+  if ($mes) {
+    $mes = addslashes($mes);
+    $w = "WHERE Type < 5 AND substr(time, 1, 7) = '$mes'"; 
+    set_title("Платежи, полученные за $mes");
+  } else {
+    set_title ("Полученные платежи");
+    $w = "WHERE Type < 5"; 
+  }
+  $sth = pgq ("SELECT *, DATE_FORMAT(Time,'%e %c') as dt FROM libdonations $w ORDER BY 1 DESC", Sel ("COUNT(*) FROM libdonations $w"));
   $r .= "<table><tr><th>Дата<th>Участник<th>Сумма<th>Кому<th>Платёжная система";
   while ($a1=dbf($sth)) {
     switch ($a1->Type) {
@@ -309,13 +386,30 @@ function libdonatepaid() {
       $username = '';  
     $r .= "<tr><td align=right>$a1->dt &nbsp; <td>$username<td>\$$sum<td>$rasp<td>$a1->PayType";
   }
-  $sum = sprintf("%01.2f", Sel("SUM(Sum)FROM libdonations")/100);
-  $t1 = (int)(Sel("UNIX_TIMESTAMP(NOW())-UNIX_TIMESTAMP(Time) FROM libdonations WHERE DonateId=1")/3600/24);
-  $t2 = (int)($sum/$t1 + .5);
-  $r .= "<tr><td><tr><td><td><b>Итого</b><td>\$$sum<td>за $t1 дней, в среднем \$$t2 в день";
+  $sum = sprintf("%01.2f", Sel("SUM(Sum) FROM libdonations $w")/100);
+  $t1 = (int)(Sel("UNIX_TIMESTAMP(Max(Time)) - UNIX_TIMESTAMP(Min(Time)) FROM libdonations $w")/3600/24);
+  $r .= "<tr><td><tr><td><td><b>Итого</b><td>\$$sum<td>за $t1 дней";
+  if ($t1) {$t2 = (int)($sum/$t1 + .5); $r .=", в среднем \$$t2 в день";}
   $r .= "</table>";
   return $r.theme('pager');
 }
+    
+function libDonateSMS1() { 
+  switch(arg(2)) {
+    case FAIL:
+      return "Попытка SMS-платежа не удалась. <a href=/donate>Попробуйте другие способы</a>";
+    case OK: 
+       $sum = $_POST[s_amount];
+       $smsid = $_POST[s_order_id];
+       $t = (int)($smsid/1000000000000);
+       $smsid %= 1000000000000;
+       $u = (int)($smsid/1000000);
+       $smsid %= 1000000;
+       $a = $smsid;
+       libDonateAdd("u$u"."t$t"."a$a", $sum, "sms"); 
+    return "Принят SMS-платеж.".($u > 0 ? "<a href=/donate/stat/paid>Статистика</a>" : '');
+  }
+}   
     
 function libDonateSMS() {
   $SecretKey="seccluch";

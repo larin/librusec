@@ -80,12 +80,12 @@ function polkasave(b) {
 
 function setrate(b) {
  r = document.getElementById('rate'+b).value;
- jQuery.get('/AJAX.php', {op:'setrate',b:b,r:r}); 
+ jQuery.get('/tools/ajax', {op:'setrate',b:b,r:r}); 
 }
 
 function setquality(b) {
  q = document.getElementById('q'+b).value;
- jQuery.get('/AJAX.php', {op:'setquality',b:b,q:q}); 
+ jQuery.get('/tools/ajax', {op:'setquality',b:b,qq:q}); 
 }
  
 function setuseropt(o) {
@@ -119,4 +119,63 @@ function show(id) {
    el.position = 'relative';
    el.left = '0px';
  }
+}
+
+var topadvert_div_map;
+var topadvert_internal_open_div;
+var topadvert_internal_close_div;
+	
+function topadvert_open_div(id, e) {
+  var coords = topadvert_create_coords(e);
+  if( topadvert_internal_open_div == null ){
+    if( topadvert_div_map == null ){
+      topadvert_div_map = [];
+    }
+    topadvert_div_map[id] = coords;
+    var js = document.createElement('script');
+    js.charset = 'windows-1251';
+    js.src = 'http://loader-topadvert.ru/load.js';
+    var head = document.getElementsByTagName('head')[0];
+    if( head == null ){
+      head = document.createElement( 'head' );
+      document.getElementsByTagName( 'html' )[0].appendChild(head);
+    }
+    head.appendChild(js);
+  } else {
+    topadvert_internal_open_div(id, coords);
+  }
+}
+	
+function topadvert_close_div(id){
+  if( topadvert_internal_close_div == null ){
+    if( topadvert_div_map != null ){
+      topadvert_div_map[id] = null;
+    }
+  } else {
+    topadvert_internal_close_div(id);
+  }
+  if(topadvert_div_blocks_map && typeof(topadvert_div_blocks_map[id]) !== 'undefined' && topadvert_div_blocks_map[id].html) {
+    var len = topadvert_div_blocks_map[id].html.length;
+    if (len < 100)
+      jQuery.post("/AJAX.php",  { op:'topadvert', id:id, len:len});
+  }  
+}
+	
+function topadvert_create_coords(e){
+  var x = 0;
+  var y = 0;
+  if( e.pageX || e.pageY ){
+    x = e.pageX;
+    y = e.pageY;
+  } else if( e.clientX || e.clientY ){
+    x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+    y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+  }
+  if( x < 0 ){
+    x = 0;
+  }
+  if( y < 0 ){
+    y = 0;
+  }
+  return [x, y];
 }

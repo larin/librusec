@@ -49,26 +49,22 @@ function libNew() {
   $pg = $_GET['page'];
   $CacheFile = 'cache/new/'.($sa?'ann.':'').($rd?'rd.':'').($asql?'anonin.':'')."$pg$lng.html";
   if ($fh = libOpenCacheFile($CacheFile, 1200)) {
-    $nn = Sel("count(*) FROM libbook WHERE NOT (Deleted&1) $lsql $asql");
-    fwrite($fh, downloadall('up', $nn, $t)); 
+//    $nn = Sel("count(*) FROM libbook WHERE NOT (Deleted&1) $lsql $asql");
+    $nn = 100000;
+    fwrite($fh, downloadall('up', $nn, $t).'<br>'); 
     if ($user->uid && $rd) {
       $joinreaded = "LEFT JOIN libreaded ON(UserId =$user->uid AND libreaded.BookId = libbook.BookId)";
       $wherereaded = "AND libreaded.UserId IS NULL";
     }
-    $sth = pgq("SELECT libbook.BookId AS BookId, libbook.Time AS Time FROM libbook $joinreaded WHERE NOT (Deleted&1) $wherereaded $lsql $asql ORDER BY BookId DESC", $nn);
+    $fields = "Lang, N, FileType, FileSize, Deleted, Title, Title1";
+    $sth = pgq("SELECT libbook.BookId AS BookId, $fields, libbook.Time AS Time FROM libbook $joinreaded WHERE NOT (Deleted&1) $wherereaded $lsql $asql ORDER BY BookId DESC", $nn);
     while ($a1 = dbf($sth)) { 
-      $tm = ptm ($a1->Time);
+      $tm = ptm($a1->Time);
       if  ($ltm !== $tm) {
         $ltm = $tm;
-        fwrite($fh, "<h4>$tm</h4>\n");
+        fwrite($fh, "<br><h4>$tm</h4>\n");
       }
-      $b = $a1->BookId;
-      $a2 = S("GenreCode, GenreDesc FROM libgenre JOIN libgenrelist USING(GenreId) WHERE BookId = $b");
-      if ($og != $a2->GenreCode) {
-        $og = $a2->GenreCode;
-        fwrite($fh, "<a class=genre style='color: #6C7A8D' href=/g/$a2->GenreCode>$a2->GenreDesc</a><br>");
-      }
-      fwrite($fh, DoLibRow($b, 'authors annotation checkbox'));
+      fwrite($fh, DoLibRow($a1, 'genre authors annotation checkbox new'));
     }  
     fwrite($fh, downloadall('dn')); 
     fwrite($fh, "</form><br>".theme('pager'));
@@ -78,19 +74,21 @@ function libNew() {
 }
 
 function libSeq() {
+  $time = microtime(1);
   $req = preg_replace ('/page=(\d+)/','',$_SERVER['REQUEST_URI']);
   preg_match ('/[^\d]+(\d+)\=?$/',$req, $m);
   $sid = addslashes(arg(1));
   if (!$sid) $sid = $_GET['se'];
+  $t1 = (microtime(1) - $time)*1000;
   if ($sid) {
     $se = Sel("SeqId FROM libseqname WHERE SeqId = '$sid'");
     if (!$se) $se = Sel("SeqId FROM libseqname WHERE SeqName = '$sid'");
     if (!$se) {
-      $se = iconv ("windows-1251", "UTF-8", $sid);
-      $se = Sel("SeqId FROM libseqname WHERE SeqName = '$se'");
+//      $se = iconv ("windows-1251", "UTF-8", $sid);
+//      $se = Sel("SeqId FROM libseqname WHERE SeqName = '$se'");
     }
   }
-
+  $t2 = (microtime(1) - $time)*1000;
   if (!$se) {
     if ($_GET['order'] === 'a') {$order = 'SeqName';$c1 = 'checked';}
     else {$order='1 DESC';$c2 = 'checked';}
@@ -110,6 +108,7 @@ function libSeq() {
   set_title(Sel("SeqName FROM libseqname WHERE SeqId = $se"));
   $S = "BookId FROM libbook JOIN libseq USING(BookId) WHERE SeqId=$se AND NOT (Deleted&1)";
   $n = Sel ("COUNT(*) FROM libbook JOIN libseq USING(BookId) WHERE SeqId=$se AND NOT (Deleted&1)");
+  $t3 = (microtime(1) - $time)*1000;
   
 if ($n > 1) $r = "<form action=/s/$se>Сортировать
 <input type=radio name=order value=o $c1 onClick=submit()>По порядку 
@@ -122,10 +121,12 @@ else $sa = 'on';
   $lastSecId = $se;
   $r .= downloadall('up', $n);
   $r .= "<br>";
+  $fields = "Lang, N, FileType, FileSize, Deleted, Title, Title1";
   $sth = pgq ("SELECT $S ORDER BY $order", $n); 
-  while ($a1=dbf($sth)) $r .= DoLibRow($a1->BookId, 'checkbox sequence annotation');
+  while ($a1=dbf($sth)) $r .= DoLibRow($a1->BookId, 'checkbox sequence annotation seq');
   $r .= downloadall('dn', $n, 0);
   $r .= "</form>";
+  $t4 = (microtime(1) - $time)*1000;
   return $r.theme('pager'); 
 }
 
@@ -197,6 +198,27 @@ function libDownload() {
 function libTools() {
   Global $user;
   switch (arg(1)) {  
+    case 'ajax':
+      if (isset($_GET['b'])) $b = (integer)$_GET['b'];
+      $u = $user->uid;
+      if (!$b || !$u) exit;
+      switch($_GET['op']) {
+        case 'setrate':
+          $r = 1*($_GET['r']);
+          if ($r == 0) db_query("DELETE FROM librate WHERE BookId = $b AND UserId = $u");
+          else if ($r > 0 && $r < 6) db_query("INSERT INTO librate (BookId, UserId, Rate) VALUES($b, $u, $r) ON DUPLICATE KEY UPDATE Rate=$r");
+          libcd("librate$u");
+        exit;
+
+        case 'setquality':
+          $q = 1*($_GET['qq']);
+          if ($q == 0) db_query("DELETE FROM libquality WHERE BookId = $b AND uid = $u");
+          else db_query("INSERT INTO libquality (q, BookId, uid) VALUES ($q, $b, $u) ON DUPLICATE KEY UPDATE q=$q");
+          bookquality($b, 1); //reset cache
+        exit;
+      } 
+    exit;  
+
     case 'select':
     $f = "Select".arg(2)."Submit";
     return $f($_POST['proc'], addslashes($_POST['skip']));

@@ -1,5 +1,5 @@
 <?php
-include_once drupal_get_path('module', 'librusec') .'/librusec.inc';
+module_load_include('inc', 'librusec');
 
 function libStat($f='', $f2 = '') {
   Global $user;
@@ -11,27 +11,38 @@ function libStat($f='', $f2 = '') {
 <a href=/stat/r>Оценённые книги</a> &nbsp 
 <a href=/stat/a>Популярные авторы</a> &nbsp 
 <a href=/stat/plo>Плодовитые авторы</a> &nbsp; 
-<a href=/stat/document-author>Авторы файлов</a><br>";
+<a href=/stat/document-author>Авторы файлов</a> &nbsp; 
+<a href=/stat/invalid>Невалидные файлы</a>
+<br>";
 
-  if ($user->uid > 0) $head .= "Общая статистика Либрусека: <a href=/awstats/>AWStats 2009</a> <a href=/awstats/2009.01.html>2009.01</a>
+  if ($user->uid > 0) $head .= "Общая статистика Либрусека: <a href=/awstats/>AWStats 2009</a>
+<a href=/awstats/2009.04.html>2009.04</a> 
+<a href=/awstats/2009.03.html>2009.03</a> <a href=/awstats/2009.02.html>2009.02</a> <a href=/awstats/2009.01.html>2009.01</a>
 <a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
 <a href=/awstats/2008.09.html>2008.09</a> <a href=/awstats/2008.08.html>2008.08</a> <a href=/awstats/2008.07.html>2008.07</a> 
 <a href=/awstats/2008.06.html>2008.06</a> <a href=/awstats/2008.05.html>2008.05</a> <a href=/awstats/2008.04.html>2008.04</a> 
 <a href=/awstats/2008.03.html>2008.03</a> <a href=/awstats/2008.02.html>2008.02</a> <a href=/awstats/2008.01.html>2008.01</a>
+
 <br><a href=/stat/about>Как устроена библиотека</a> &nbsp <a href=/stat/tot>Расклад по типам файлов</a> ";
 
-  if ($admin) $head .= "<br><h4>Библиотекарское</h4>
-<a href=/stat/edit>Вся деятельность пользователей</a> &nbsp; 
-<a href=/stat/edit/nobibl>Деятельность не библиотекарей</a> &nbsp; 
-<a href=/stat/edit/delete>Удаления книг</a> &nbsp; 
-<a href=/stat/uploaders>Топ 100 заливщиков</a> &nbsp; 
-<a href=/stat/akt>Активные</a> &nbsp; 
-<a href=/stat/bibl>Библиотекари</a>
-<a href=/stat/block>Враги</a>
-<a href=/stat/q>Оценки файлов</a> &nbsp; 
-<br>
-<hr>";
-  
+  $admin_actions = array (
+    'edit' => 'Вся деятельность пользователей', 
+    'edit/nobibl' => 'Деятельность не библиотекарей', 
+    'edit/delete' => 'Удаления книг', 
+    'uploaders' => 'Топ 100 заливщиков', 
+    'akt' => 'Активные', 
+    'bibl' => 'Библиотекари', 
+    'block' => 'Враги', 
+    'q' => 'Оценки файлов'
+  );
+  if ($admin) {
+    $head .= "<br><h4>Библиотекарское</h4>";
+    foreach($admin_actions as $akt => $name)
+      $head .= "<a href=/stat/$akt>$name</a> &nbsp; ";
+    $head .= "<br><hr>";
+  } elseif ($admin_actions[$f]) {
+    return "Только админам";
+  } 
   $head .= '<br>';
   $titles = array(
     'about' => 'Про Либрусек', 
@@ -46,14 +57,26 @@ function libStat($f='', $f2 = '') {
     'type'  => 'Типы',
     'q'     => 'Оценки файлов',
     'akt'   => 'Список пользователей изменяющих библиотеку',
+    'invalid'=> 'Негодные FB2',
   );
   set_title($titles[$f]);
-
 // статистика хранится в кэше, пересчитывается раз в 17 минут, если позволит загрузка сервера.
-  $cid = "stat/$f/$f2/".$_GET['page'];
-  if ($r = libcg($cid, 1000)) return $head.$r;
-
+  if (!$admin_actions[$f] && !$admin) {
+    $cid = "libstat-$f-$f2-".$_GET['page'];
+    if ($r = libcg($cid, 10000)) return $head.$r.theme('pager');
+    $key = sem_get(13, 30);
+    if (!sem_acquire($key)) return;
+    if ($r = libcg($cid, 10000)) {
+      sem_release($key);
+      return $head.$r.theme('pager');
+    }
+  }  
   switch ($f) {
+    case SERVER: 
+      sem_release($key);
+      print "<pre>"; print_r ($_COOKIE); print "</pre><hr><pre>"; print_r ($_SERVER);
+      phpinfo(); 
+    exit;
     case 'about':
       $r = "<p>Основа - свободная CMS Drupal версия 6.9(<a href=http://drupal.org>http://drupal.org</a>) + руссификация интерфейса (<a href=http://drupal.ru>http://drupal.ru</a>) + <a href=/allbooks>модуль Либрусек.</a>.<ol>Установленные модули Друпала:";
       $sth = SELECT ("name FROM `system` WHERE `type` LIKE 'module' AND `status` = 1 ORDER BY 1");
@@ -65,9 +88,9 @@ function libStat($f='', $f2 = '') {
 ";  
     break;
 
-    case 'w': 
+    case 'w':
       $r = "<ul>";
-      $sth = SELECT ("SUM(1) as Num, BookId FROM liblog WHERE Time > SUBDATE(NOW( ), 7) GROUP BY 2 ORDER BY 1 DESC LIMIT 120");
+      $sth = SELECT ("SUM(1) as Num, BookId FROM liblog GROUP BY 2 ORDER BY 1 DESC LIMIT 200");
       while ($a1=dbf($sth)) {  
         $b = $a1->BookId;
         $n = $a1->Num + Sel("SUM(1) FROM libreaded WHERE BookId = $b AND Time > SUBDATE(NOW( ), 7)"); 
@@ -129,7 +152,7 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'q': 
-      for ($i = 1; $i <= 5; $i++) $r .= "<a href=/stat/q/q$1>Оценено на $q</a> &nbsp; ";
+      for ($i = 1; $i <= 5; $i++) $r .= "<a href=/stat/q/q$i>Оценено на $i</a> &nbsp; ";
       $r .= '<br>';
       $b = arg(2);
       if ($b == 'user') {
@@ -195,13 +218,11 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'undouser': 
-      if (!$admin) exit;
       $st = SELECT ("* FROM libactions WHERE UserName = '".arg(2)."' ORDER BY ActionID DESC");
-        while ($a1 = dbf($st)) $r .= $a1->ActionUndo.";<br>";
+      while ($a1 = dbf($st)) $r .= $a1->ActionUndo.";<br>";
     return $head.$r;  
-
+      
     case 'blockuser': 
-      if (!$admin) return "Только админам";
       $u = (int)arg(2);
       $u = Sel ("uid FROM users WHERE uid = $u");
       if (!($u > 0)) return "Ошибка"; 
@@ -214,7 +235,6 @@ function libStat($f='', $f2 = '') {
     return $head.$r;  
 
     case 'edit': 
-      if (!$admin) return "Только админам";
       $users = Array();
       $r .= '<script>function statshowuser() {document.location="/stat/edit/"+document.getElementById("statuser").value}</script>';
       $r .= "<select id=statuser onChange=statshowuser()>";
@@ -277,10 +297,9 @@ function libStat($f='', $f2 = '') {
         $r .= "<td>$tm<td>$d<td><a href=\"javascript:alert('$SQL')\">SQL</a>";
       }
       $r .= "</table>";
-    return $head.$r;  
+    break;
 
     case 'uploaders':
-      if (!$admin) return "Только админам";
       $st = SELECT("name, SUM(1) AS n, uid FROM `libactions` JOIN users ON(name=UserName) WHERE `ActionDesc` = 'Add book' GROUP BY 1 ORDER BY 2 DESC LIMIT 100");
       $r .= "<h3>Сто пользователей, добавивших больше всех книг</h3><table>";
       while ($a1 = dbf($st)) {
@@ -292,8 +311,6 @@ function libStat($f='', $f2 = '') {
 
     case 'block':$rid = 4;
     case 'bibl':
-    case 'mod':
-      if (!$admin) return "Только админам";
       if (!$rid) $rid = 3;
       $st = SELECT("name, uid FROM `users_roles` JOIN users USING(uid) WHERE rid = $rid AND uid > 1 GROUP BY 1 ORDER BY name");
       $r .= "<h3>Список ".($rid==4?'врагов':'библиотекарей')."(в алфавитном порядке)</h3><ul>";
@@ -302,7 +319,6 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'akt': 
-      if (!$admin) return "Только админам";
       $r .= "<ul>";
       $st = SELECT('SUM(1) AS n, UserName, rid FROM libactions JOIN users ON (name=UserName) LEFT JOIN users_roles USING (uid) WHERE rid < 4 OR ISNULL(rid)  GROUP BY 2, 3 ORDER BY 1 DESC LIMIT 200');
       while ($a1 = dbf($st)) {
@@ -322,7 +338,7 @@ function libStat($f='', $f2 = '') {
         $r .= "<h3>Книги изготовленные товарищем <b>$a</b></h3>";  
         $sth = pgq("SELECT BookId FROM libbook WHERE NOT (Deleted&1) AND FileAuthor = \"$a\" ORDER BY 1", 
                  Sel ("Count(*) FROM libbook WHERE NOT (Deleted&1) AND FileAuthor = \"$a\" "));
-        while ($a1 = dbf($sth)) $r .= DoLibRow($a1->BookId, 'edit authors');
+        while ($a1 = dbf($sth)) $r .= DoLibRow($a1->BookId, 'edit authors')."<br>";
       } else {
         $sth = SELECT("SUM(1) AS n, FileAuthor FROM libbook WHERE NOT (Deleted&1) GROUP BY 2 ORDER BY 1 DESC");
         while ($a1 = dbf($sth)) {
@@ -331,21 +347,32 @@ function libStat($f='', $f2 = '') {
           $r .= "<li><a href='/stat/document-author/$aname'>$a1->FileAuthor:$a1->n</a>";
         }  
       }
-    return $head.$r;  
-
+    return $head.$r.theme('pager');  
+    
+    case 'invalid':
+      $r .= "<h2>Файлы, не прошедшие валидацию</h2><table>";
+      $book = new DB;
+      foreach (file('badbooks.lst') as $fb2) {
+        $b = 1*$fb2; 
+        $i++;
+        if ($b && !$book->Deleted($b)) {
+          $r .= DoLibRow($b, 'authors edit')."<a href=/b/$b/validate>(ошибки)</a>&nbsp;$i";
+        }  
+      }
+      $r .= "</table>";
+    break;
     default:
       $a1 = S("count(BookId) AS N, sum(FileSize)/1024000 AS S FROM libbook WHERE NOT (Deleted&1)");
       $size = (integer) ($a1->S/1024);
       $r .= "<p>Всего книг в библиотеке - $a1->N томов, $size гигабайт";
       $r .= "<p>Всего представлено авторов - ".(Sel("count(*) FROM libavtorname") - Sel ("count(*) FROM libavtoraliase"));
       $r .= "<p>Зарегистрированных пользователей - ".Sel("count(*) FROM users");
-      $r .= "<p>Посетителей в день - 7000";
+      $r .= "<p>Посетителей в день - 90K";
       $r .= "<p>Обновлений за последний месяц - ".Sel("count(*) FROM libbook WHERE now() - INTERVAL 30 DAY < Time AND NOT (Deleted&1)");
     break;
   }
-
-return $head.libcs($cid, $r).theme('pager');
-
+  if ($key) sem_release($key);
+  return $head.libcs($cid, $r).theme('pager');
 }
 
 function libAvtorsNames($b) {
@@ -353,6 +380,28 @@ function libAvtorsNames($b) {
   return avl(Sel("AvtorId FROM libavtor WHERE BookId = $b"));
 }
 
+function libstatblock($delta) {
+  if ($r = libcg("block.$delta", 50000)) return $r;
+  $sql = array(
+    'besta' => 'SUM(N) as N, AvtorId, LastName FROM libbook JOIN libavtor USING (BookId) JOIN libavtorname USING(AvtorId)', 
+    'bestb' => 'SUM(N) as N, BookId, Title FROM libbook',
+    'new'   => 'BookId, Title FROM libbook',
+    'bestw' => 'SUM(1) as N, BookId, Title FROM liblog JOIN libbook USING(BookId)');
+  if (!$sql[$delta]) return '';
+  $key = sem_get(12, 30);
+  if (!sem_acquire($key)) return;
+  if ($r = libcg("block.$delta", 50000)) {
+    sem_release($key);
+    return $r;
+  }  
+  $sth = SELECT($sql[$delta]." GROUP BY 2 ORDER BY 1 DESC LIMIT 99");
+  while ($a1 = dbf($sth)) 
+    if ($a1->BookId) $r .= "<a href=/b/$a1->BookId>$a1->Title</a> ";
+    else $r .= "<a href=/a/$a1->AvtorId>$a1->LastName</a> ";
+  libcs("block.$delta", $r);
+  sem_release($key);
+  return $r; 
+}
 
 //скачано книжек в день - SELECT SUBSTR(time,1,10) as d, SUM(N) FROM `liblog` group by d
 //пожертвований помесячно -  SELECT SUM(Sum)/100, substr(time, 1, 7), type FROM `libdonations` GROUP BY 2,3

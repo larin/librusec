@@ -37,8 +37,10 @@ function libGenre() {
       return libRSS('g/'.$g, 1, $g, 'g', "JOIN libgenre USING(BookId) JOIN libgenrelist USING(GenreId)", "GenreCode LIKE '$g1' AND");
     }  
   }
-  if (!$g1 = S("* FROM libgenrelist WHERE GenreCode = '$g' OR GenreDesc = '$g' OR GenreId = '$g'"))
-    return "Не существует жанра $g Извините.";
+  $g = addslashes($g);
+  $g1 = S("* FROM libgenrelist WHERE GenreCode = '$g' OR GenreDesc = '$g' OR GenreId = '$g' LIMIT 1");
+  if (!$g1) $g1 = S("* FROM libgenrelist WHERE GenreDesc like '%$g%' ORDER BY GenreId BY LIMIT 1");
+  if (!$g1) return "Не существует жанра $g Извините.";
 
   if (arg(2) == 'rss')  
     return libRSS('g/'.$g1->GenreCode, 1, $g1->GenreDesc, "g/$g", "JOIN libgenre USING(BookId)", "GenreId = $g1->GenreId AND");
@@ -59,7 +61,7 @@ function libGenre() {
   }  
   $CacheFile = "cache/g/$g1->GenreCode$oo$anonim.html";
   if ($fh = libOpenCacheFile($CacheFile, 24*3600)) {
-    $sth = SELECT("libbook.BookId AS b, Time, Title, libavtor.AvtorId AS a FROM libbook JOIN libgenre USING(BookId) JOIN libavtor USING(BookId) JOIN libavtorname USING(AvtorId) $joinseq WHERE NOT (1&Deleted) AND GenreId = $g1->GenreId $asql ORDER BY $order");
+    $sth = SELECT("libbook.BookId AS b, Time, Title, Title1, libavtor.AvtorId AS a FROM libbook JOIN libgenre USING(BookId) JOIN libavtor USING(BookId) JOIN libavtorname USING(AvtorId) $joinseq WHERE NOT (1&Deleted) AND GenreId = $g1->GenreId $asql ORDER BY $order");
     while ($a1 = dbf($sth)) { 
       if ($c3) {
         $tm = ptm ($a1->Time);
@@ -73,6 +75,8 @@ function libGenre() {
         $a = $a1->a;
         if ($preda != $a) fwrite($fh, "<h5>".avl($a)."</h5>"); 
         $preda = $a;
+        $name = $a1->Title;
+        if ($a1->Title1) $name .= " [$a1->Title1]";
         fwrite($fh, (++$i)." <a href=/b/$a1->b>$a1->Title</a><br>\n");
       }
     }  

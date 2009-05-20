@@ -16,13 +16,12 @@ function librusec_schema() {
       'FileSize' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP'),
       'Title' => array('type' => 'varchar', 'length' => '254', 'not null' => TRUE, 'default' => ''),
+      'Title1' => array('type' => 'varchar', 'length' => '254', 'not null' => TRUE, 'default' => ''),
       'Lang' => array('type' => 'char', 'length' => '2', 'not null' => TRUE, 'default' => 'ru'),
       'Deleted' => array('type' => 'char', 'length' => '1', 'not null' => TRUE, 'default' => ''),
       'FileType' => array('type' => 'varchar', 'length' => '4', 'not null' => TRUE, 'default' => 'fb2'),
       'Year' => array('type' => 'int', 'size' => 'small', 'not null' => TRUE, 'default' => 0),
-      'Publisher' => array('type' => 'varchar', 'length' => '99', 'not null' => TRUE, 'default' => ''),
       'Ver' => array('type' => 'varchar', 'length' => '8', 'not null' => TRUE, 'default' => ''),
-      'Id' => array('type' => 'varchar', 'length' => '40', 'not null' => TRUE, 'default' => ''),
       'N' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'FileAuthor' => array('type' => 'varchar', 'length' => '64', 'not null' => TRUE, 'default' => ''),
       'keywords' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
@@ -33,11 +32,10 @@ function librusec_schema() {
          'Deleted' => array('Deleted'),
          'FileSize' => array('FileSize'),
          'FileType' => array('FileType'),
-         'Id' => array('Id'),
          'Lang' => array('Lang'),
-         'Publisher' => array('Publisher'),
          'SeqId' => array('SeqId'),
          'Title' => array('Title'),
+         'Title1' => array('Title1'),
          'Year' => array('Year'),
   ));
   $schema['liblog'] = array(
@@ -300,7 +298,14 @@ function librusec_schema() {
     'primary key' => array('BookId'),
     'indexes' => array('rate' => array('rate'))
   );
-
+  $schema['libtopadvert'] = array(
+    'fields' => array(
+      'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP'),     
+    ),
+    'primary key' => array('BookId'),
+    'indexes' => array('Time' => array('Time'))
+  );
   return $schema;
 }
 

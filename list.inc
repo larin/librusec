@@ -3,7 +3,11 @@ include_once drupal_get_path('module', 'librusec') .'/librusec.inc';
 
 function libLetter($buk) {
   set_title("Авторы, фамилия которых начинается на букву $buk");
-  return libList('a', $buk);
+  $sth = SELECT("SUM(N) as N, AvtorId FROM `libbook` JOIN libavtor USING (BookId) JOIN libavtorname USING(AvtorId)
+                 WHERE LastName LIKE '$buk%' GROUP BY AvtorId ORDER BY 1 DESC LIMIT 22");
+  while ($a1=dbf($sth)) $r .= avl($a1->AvtorId, '&nbsp;').' &nbsp; ';
+
+  return $r." ...<br><br>".libList('a', $buk);
 }
 
 function p($t) { 
@@ -93,7 +97,7 @@ function libAJAXlist() {
     $tot = Sel ("COUNT(DISTINCT(libbook.BookId)) FROM libbook $ja $jg $W");
     $S = "SELECT libbook.BookId AS b FROM libbook $ja $jg $W $gb ORDER BY $O";
   }  
-  Global $user; if ($user->uid == 1) print "<br>$S<br>";
+//  Global $user; if ($user->uid == 1) print "<br>$S<br>";
   $sth = pgq($S, $tot);
   print "<div align=left>";
   if (!$SinBooks) print downloadall('up'); //AnnChkbox('RB()').
@@ -102,11 +106,11 @@ function libAJAXlist() {
     if ($SinBooks) 
       print avl1($a1->a)." ($a1->N)<br>\n"; 
     else 
-      print DoLibRow($a1->b, 'authors checkbox genre annotation'); 
+      print DoLibRow($a1->b, 'authors checkbox genre annotation list'); 
   }
   if (!$SinBooks) print downloadall('down')."</form>";
   print "</div><br>";
-  if (!$NN) print "Не нашлось ни единой книжки, удовлетворяющей вашим втребованиям. Упростите.";
+  if (!$NN) print "Не нашлось ни единой книжки, удовлетворяющей вашим требованиям. Упростите.";
   $pager = theme('pager');
   $pager = preg_replace('|/makebooklist.page=(\d+)"|','javascript:pg($1)"',$pager);
   $pager = preg_replace('|/makebooklist.page=(\d+)[^"]+"|','javascript:pg($1)"',$pager);

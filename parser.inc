@@ -7,17 +7,17 @@ function pp($s) {  // ParsePrint - печать в текущий файл ре�
   if ($PD->IN['ANNOTATION']) $PD->ann .= $s;
 }
 
-Global $PD;
+Global $PD, $html1, $html2;
 //Трансляция открывающих тэгов fb2 => html. Можно без угловых скобок - добавятся при необходимости.
-$PD->html1 = array ('EPIGRAPH' => '<blockquote class="epigraph">', 'TEXT-AUTHOR' => '<blockquote class=book><i>', 'ANNOTATION' => 'h4 class=book', 
+$html1 = array ('EPIGRAPH' => '<blockquote class="epigraph">', 'TEXT-AUTHOR' => '<blockquote class=book><i>', 'ANNOTATION' => 'h4 class=book', 
 'POEM' => 'blockquote class=book', 'V' => 'BR', 'EMPTY-LINE' => 'br', 'STANZA' => 'br', 'P' => 'p class=book', 
 'SUBTITLE' => 'h5 class=book', 'CITE' => 'blockquote class=book', 'STRONG' => 'b', 'EMPHASIS' => 'i', 'STRIKETHROUGH' => 'strike');
 
 //Трансляция закрывающих тэгов fb2 => html. Отсутствующие тут транслируются по предыдущей схеме.
-$PD->html2 = array ('EPIGRAPH' => '</blockquote>', 'TEXT-AUTHOR' => '</i></blockquote>', 'EMPTY-LINE' => '-', 'TITLE' => '</h3>', 'SECTION' => '-', 'V' => "\n", 'IMAGE' => '-', 'P'=>'</p>','ANNOTATION' => '</h4>','SUBTITLE' => '</h5>', 'CITE' => '</blockquote>', 'EMPTY-LINE' => '-'); 
+$html2 = array ('EPIGRAPH' => '</blockquote>', 'TEXT-AUTHOR' => '</i></blockquote>', 'EMPTY-LINE' => '-', 'TITLE' => '</h3>', 'SECTION' => '-', 'V' => "\n", 'IMAGE' => '-', 'P'=>'</p>','ANNOTATION' => '</h4>','SUBTITLE' => '</h5>', 'CITE' => '</blockquote>', 'EMPTY-LINE' => '-'); 
 
 function libParserStart($parser, $E, $attrs) {
-  Global $PD;
+  Global $PD, $html1;
   if ($PD->done) return;
   $E = strtoupper($E); 
    foreach ($attrs as $key => $val) {
@@ -105,17 +105,18 @@ function libParserStart($parser, $E, $attrs) {
     case 'TITLE':   
       if ($PD->IN['SECTION'] && !$PD->SectionID) {
           $PD->tocn++;
-          pp("<a name=t$PD->tocn></a><h3>");
+          pp("<a name=t$PD->tocn></a><h3 class=book>");
           $PD->TOC .= "<li>";
           for ($i = 1; $i < $PD->IN['SECTION']; $i++) $PD->TOC .= ' &nbsp; ';
           $PD->TOC .= "<a href=#t$PD->tocn>";
       } else pp('<h3 class=book>');  
     break;
     case 'P':
-      pp("<p class=book>");
+      if (!$PD->IN['TITLE'])
+        pp("<p class=book>");
     break;
     default:
-      if ($t = $PD->html1[$E]) {
+      if ($t = $html1[$E]) {
         if ($t[0] != '<') $t = "<$t>";
         pp ($t);
       }  else { //неизвестный науке тэг, оставляем как есть со всеми параметрами
@@ -128,7 +129,7 @@ function libParserStart($parser, $E, $attrs) {
 }
 
 function libParserEnd($parser, $E) {
-  Global $PD;
+  Global $PD, $html1, $html2;
   if ($PD->done) return;
   array_pop($PD->path);
   switch ($E = strtoupper($E)) {
@@ -180,11 +181,11 @@ function libParserEnd($parser, $E) {
   }
   if ($E == 'A' && $PD->notelink) pp('</sup>'); 
   if ($E == 'TITLE' && $PD->IN['SECTION'] && !$PD->SectionID) $PD->TOC .= "</a>";
-  $t = $PD->html2[$E];
+  if ($E == 'P' && $PD->IN['TITLE']) return;
+  $t = $html2[$E];
   if ($t == '-' || $t == 'BR') return;
-  if (!$t) $t = $PD->html1[$E];
+  if (!$t) $t = $html1[$E];
   if (!$t) $t = $E;
-  if ($t == 'TITLE') $t = 'h3';
   if ($t != "\n" && $t[0] != '<') $t = "</$t>";
   pp ($t);
 }
@@ -227,23 +228,29 @@ function libRead($b) {
   $fb2 = "b/$b.fb2";
   $html = "b.htm/$b.htm";
   if (SuperUser() || !file_exists($html)) {
-    if ($err = parsefb2($fb2, $b, 'htm', $html)) return $err;
-    Global $PD;
-    db_query("INSERT INTO libcache (BookId, TOC, Cover) 
+    $key = sem_get(14, 30);
+    if (!sem_acquire($key)) return;
+    if (SuperUser() || !file_exists($html)) {     
+      $err = parsefb2($fb2, $b, 'htm', $html);
+      if (!$err) {
+        Global $PD;
+        db_query("INSERT INTO libcache (BookId, TOC, Cover) 
               VALUES (%d, '%s', '%s') ON DUPLICATE KEY UPDATE TOC='%s', Cover='%s'", $b, $PD->TOC, $PD->cover, $PD->TOC, $PD->cover);
-    if ($PD->ann && !Sel("nid FROM node WHERE type = 'bdesc' AND title = $b")) {
-      $body = addslashes($ann = $PD->ann);
-      $nid = max (Sel ("MAX(nid) FROM node"), Sel ("MAX(nid) FROM node_revisions")) + 1;
-      $vid = max (Sel ("MAX(vid) FROM node"), Sel ("MAX(vid) FROM node_revisions")) + 1;
-      $now = time();
-      db_query("Insert into node (nid, vid, type, title, uid, status, created, changed, comment, promote, moderate, sticky)
-              VALUES ($nid, $vid, 'bdesc', $b, 5, 1,  $now, $now,     2, 0, 0, 0)");  
-      db_query("Insert into node_revisions (nid, vid, uid, title, body, timestamp, format)
-                              VALUES ($nid, $vid, 5, $b, '$body', $now, 1)");
-
+        if ($PD->ann && !Sel("nid FROM node WHERE type = 'bdesc' AND title = $b") && !Sel("nid FROM libbnode WHERE BookId = $b")) {
+          $body = addslashes($ann = $PD->ann);
+          $nid = max (Sel ("MAX(nid) FROM node"), Sel ("MAX(nid) FROM node_revisions")) + 1;
+          $vid = max (Sel ("MAX(vid) FROM node"), Sel ("MAX(vid) FROM node_revisions")) + 1;
+          $now = time();
+          db_query("Insert into node (nid, vid, type, title, uid, status, created, changed, comment, promote, moderate, sticky)
+                    VALUES ($nid, $vid, 'bdesc', $b, 5, 1,  $now, $now,     2, 0, 0, 0)");  
+          db_query("Insert into node_revisions (nid, vid, uid, title, body, timestamp, format)
+                    VALUES ($nid, $vid, 5, $b, '$body', $now, 1)");
+         }           
+      }
     }
+    sem_release($key);
   } 
-  return libReadCacheFile ($html);
+  return $err.file_get_contents($html);
 }
   
 function parsefb2($fb2, $b, $format, $tofile = '') {
@@ -266,7 +273,7 @@ function parsefb2($fb2, $b, $format, $tofile = '') {
   if ($PD->format == 'txt') {
     $PD->text[++$PD->noten] = "\n\nВзято из Либрусека, http://lib.rus.ec/b/$PD->b\n";
     for($i = 0; $i <= $PD->noten; $i++) 
-      fwrite($fh, iconv("UTF-8", "Windows-1251", $PD->text[$i]));
+      fwrite($fh, iconv("UTF-8", "Windows-1251//TRANSLIT", $PD->text[$i]));
   } else {     
     if ($PD->format == 'html') fwrite($fh, 
       "<html><head><meta http-equiv='Content-Type' content='text/html; charset=utf8'>\n".
@@ -303,6 +310,11 @@ function MakeFile($b, $f, $dtp, $r) {
      chdir ('conv');
      exec ('perl fb2_2_rtf.pl "../'.$fb2.'" FB2_2_rtf.xsl "../'.$r.'"');
      chdir ('..');
+    return;
+    case 'epub':
+      chdir('conv/fb2docbook');
+      exec('python btransformer.py --config btconfig_default.xml --epub /www/'.$fb2.' "/www/'.$r.'"');
+     chdir ('../..');
     return;
     case 'pdb':
      exec ('conv/iSiloXC "'.$fb2.'" "'.$r.'"');
