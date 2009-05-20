@@ -1,0 +1,35 @@
+input.button {
+  border:solid #d1dbec;
+  background-color:#fbfcfe;
+}
+
+.genre {
+  color: #6C7A8D;
+}  
+
+p.genre {
+  margin-bottom: 0pt; 
+}
+
+a.genre { 
+  margin-bottom: 0pt; 
+  margin-top: 0pt;  
+  font-size: 120%; 
+}
+
+a.sequence, H6 {
+  color:#00008B; 
+  margin-top: 4pt;
+}
+
+a.readed {
+  color:#9999ff;
+}
+
+.size {
+  color:#bbbbbb;
+}
+
+#sidebar-right { word-wrap:break-word; overflow:hidden; }
+
+img.bb-image { max-width:100%; max-height:100%; }

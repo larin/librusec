@@ -1,0 +1,12 @@
+<style>
+BODY {text-align : justify }
+p.book {text-indent:20px;  margin-bottom: 0pt; margin-top: 0pt;}
+H1.book{ /* Book title */ font-size : 160%; font-style : normal; font-weight : bold; text-align : left; }
+H2.book{ /* Avtor */ font-size : 100%; font-style : normal; font-weight : bold; text-align : left; padding-left : 1em; }
+H3.book{ /* Title */  font-size : 110%; font-style : normal; font-weight : bold; text-align : center;}
+H4.book{ /* Subtitle */ font-size : 100%; font-style : italic; font-weight : bold; text-align : left; }
+.epigraph{margin-right:5em; margin-left : 25%;}
+BLOCKQUOTE.book{ margin : 0 1em 0.2em 4em }
+H5.book{ font-size : 100%; font-style : italic; font-weight : bold; padding-left : 2.5em;text-align : center;}
+DIV.book{text-align : justify}
+</style>

@@ -1,0 +1,307 @@
+<?php
+
+function librusec_install() {
+//  drupal_install_schema('librusec');   
+}
+
+function librusec_uninstall() {
+//  drupal_uninstall_schema('librusec');
+}
+
+// http://drupal.org/node/223952  http://lib.rus.ec:8001/admin/build/schema/inspect
+function librusec_schema() {
+  $schema['libbook'] = array(
+    'fields' => array(
+      'BookId' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'FileSize' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP'),
+      'Title' => array('type' => 'varchar', 'length' => '254', 'not null' => TRUE, 'default' => ''),
+      'Lang' => array('type' => 'char', 'length' => '2', 'not null' => TRUE, 'default' => 'ru'),
+      'Deleted' => array('type' => 'char', 'length' => '1', 'not null' => TRUE, 'default' => ''),
+      'FileType' => array('type' => 'varchar', 'length' => '4', 'not null' => TRUE, 'default' => 'fb2'),
+      'Year' => array('type' => 'int', 'size' => 'small', 'not null' => TRUE, 'default' => 0),
+      'Publisher' => array('type' => 'varchar', 'length' => '99', 'not null' => TRUE, 'default' => ''),
+      'Ver' => array('type' => 'varchar', 'length' => '8', 'not null' => TRUE, 'default' => ''),
+      'Id' => array('type' => 'varchar', 'length' => '40', 'not null' => TRUE, 'default' => ''),
+      'N' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'FileAuthor' => array('type' => 'varchar', 'length' => '64', 'not null' => TRUE, 'default' => ''),
+      'keywords' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+    ),
+    'primary key' => array('BookId'),
+    'unique keys' => array('FileName' => array('FileName')),
+    'indexes' => array(
+         'Deleted' => array('Deleted'),
+         'FileSize' => array('FileSize'),
+         'FileType' => array('FileType'),
+         'Id' => array('Id'),
+         'Lang' => array('Lang'),
+         'Publisher' => array('Publisher'),
+         'SeqId' => array('SeqId'),
+         'Title' => array('Title'),
+         'Year' => array('Year'),
+  ));
+  $schema['liblog'] = array(
+    'description' => 'Скачанные книги и оценки',
+    'fields' => array(
+      'UserId' => array('type' => 'char', 'length' => '15', 'not null' => TRUE, 'default' => ''),
+      'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP'),
+      'BookId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+    'primary key' => array(
+         'bue' => array('Bookid', 'UserId')),
+    'indexes' => array(
+         'Time' => array('Time'),
+         'User' => array('UserId')),
+  ));
+  $schema['libpolka'] = array(
+    'description' => 'Впечатления пользователей о книгах',
+    'fields' => array(
+         'Id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+         'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP'),
+         'BookId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'AvtorId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'UserId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'Text' => array('type' => 'text', 'not null' => TRUE),
+         'Flag' => array('type' => 'char', 'length' => '1', 'not null' => TRUE, 'default' => '')),
+    'primary key' => array('Id'),
+    'unique keys' => array(
+         'ub' => array('BookId', 'UserId')
+    ),
+    'indexes' => array(
+         'AvtorId' => array('AvtorId'),
+         'BookId' => array('BookId'),
+         'User' => array('UserId')),
+  );
+  $schema['libseqname'] = array(
+    'description' => 'Список сериалов',
+    'fields' => array(
+         'SeqId' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+         'SeqName' => array('type' => 'varchar', 'length' => '254', 'not null' => TRUE, 'default' => '')),
+    'primary key' => array('SeqId'),
+    'unique keys' => array(
+         'SeqName' => array('SeqName')),
+  );
+  $schema['libseq'] = array(
+    'description' => 'Классификатор книга-сериал',
+    'fields' => array(
+      'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'SeqId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'SeqNumb' => array('type' => 'int', 'size' => 'small', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'Level' => array('type' => 'int', 'size' => 'small', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0)
+     ),
+    'primary key' => array('u' => array('BookId', 'SeqId')),
+    'indexes' => array('iav' => array('SeqId'))
+  );
+  $schema['libjoinedbooks'] = array(
+    'description' => 'Объединение книг',
+    'fields' => array(
+         'Id' => array('type' => 'serial', 'not null' => TRUE),
+         'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP'),
+         'BadId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'GoodId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         ),
+    'primary key' => array('Id'),
+    'unique keys' => array('BadId' => array('BadId')),
+    'indexes' => array(
+         'GoodId' => array('GoodId'),
+         'Time' => array('Time')),
+  );
+  $schema['libgenrelist'] = array(
+    'description' => 'Список жанров',
+    'fields' => array(
+         'GenreId' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+         'GenreCode' => array('type' => 'varchar', 'length' => '45', 'not null' => TRUE, 'default' => ''),
+         'GenreDesc' => array('type' => 'varchar', 'length' => '99', 'not null' => TRUE, 'default' => ''),
+         'GenreMeta' => array('type' => 'varchar', 'length' => '45', 'not null' => TRUE, 'default' => '')),
+    'primary key' => array('GenreId', 'GenreCode'),
+    'indexes' => array(
+         'meta' => array('GenreMeta')),
+  );
+  $schema['libdonations'] = array(
+    'description' => 'Полученные пожертвования',
+    'fields' => array(
+         'DonateId' => array('type' => 'serial', 'not null' => TRUE),
+         'uid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'Sum' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'Type' => array('type' => 'char', 'length' => '1', 'not null' => TRUE, 'default' => ''),
+         'AvtorId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'PayType' => array('type' => 'char', 'length' => '10', 'not null' => TRUE, 'default' => ''),
+         'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP')),
+    'primary key' => array('DonateId'),
+  );
+  $schema['libgenre'] = array(
+    'fields' => array(
+         'Id' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+         'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10'),
+         'GenreId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0, 'disp-width' => '10')),
+    'primary key' => array('Id'),
+    'unique keys' => array(
+         'u' => array('BookId', 'GenreId')),
+    'indexes' => array(
+         'igenre' => array('GenreId')),
+  );
+  $schema['libuseropt'] = array(
+    'fields' => array(
+         'User' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'Opt' => array('type' => 'char', 'length' => '1', 'not null' => TRUE),
+         'Value' => array('type' => 'char', 'length' => '4', 'not null' => TRUE)),
+    'indexes' => array(
+         'User' => array('User')),
+    'unique keys' => array(
+         'uo' => array('Opt', 'User')
+    ),
+  );
+  $schema['libcache1'] = array(
+    'fields' => array(
+         'BookId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'Advise' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+         'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP')),
+    'primary key' => array('BookId'),
+  );
+  $schema['libcache'] = array(
+    'fields' => array(
+         'BookId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'TOC' => array('type' => 'text', 'not null' => TRUE),
+         'Cover' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+         'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP')),
+    'primary key' => array('BookId'),
+  );
+  $schema['libavtorname'] = array(
+    'fields' => array(
+         'AvtorId' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE, 'disp-width' => '10'),
+         'FirstName' => array('type' => 'varchar', 'length' => '99', 'not null' => TRUE, 'default' => ''),
+         'MiddleName' => array('type' => 'varchar', 'length' => '99', 'not null' => TRUE, 'default' => ''),
+         'LastName' => array('type' => 'varchar', 'length' => '99', 'not null' => TRUE, 'default' => ''),
+         'NickName' => array('type' => 'varchar', 'length' => '33', 'not null' => TRUE, 'default' => ''),
+         'NoDonate' => array('type' => 'char', 'length' => '1', 'not null' => TRUE, 'default' => ''),
+         'uid' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'WebPay' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => '')),
+         'email' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+         'homepage' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+    'primary key' => array('AvtorId'),
+    'indexes' => array(
+         'FirstName' => array(array('FirstName', 20)),
+         'FirstName_2' => array('FirstName', 'MiddleName', 'LastName'),
+         'LastName' => array(array('LastName', 20)),
+         'NoDonate' => array('NoDonate'),
+         'Email' => array('Email'),
+         'Homepage' => array('Homepage'),
+         ),
+  );
+  $schema['libavtoraliase'] = array(
+    'fields' => array(
+         'AliaseId' => array('type' => 'serial', 'not null' => TRUE),
+         'BadId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0),
+         'GoodId' => array('type' => 'int', 'not null' => TRUE, 'default' => 0)),
+    'primary key' => array('AliaseId'),
+    'indexes' => array(
+         'BadId' => array('BadId', 'GoodId')),
+  );
+  $schema['libavtor'] = array(
+    'fields' => array(
+         'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+         'AvtorId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0)),
+    'primary key' => array('u' => array('BookId', 'AvtorId')),
+    'indexes' => array('iav' => array('AvtorId'))
+  );
+  $schema['libtranslator'] = array(
+    'fields' => array(
+         'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+         'TranslatorId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0)),
+    'primary key' => array('u' => array('BookId', 'TranslatorId')),
+    'indexes' => array('iav' => array('TranslatorId'))
+  );
+  
+  $schema['libactions'] = array(
+    'description' => 'Лог деятельности пользователей',
+    'fields' => array(
+      'ActionID' => array('type' => 'serial', 'not null' => TRUE, 'description' => t('Primary Key')),
+      'UserName' => array('type' => 'varchar','length' => 60, 'not null' => TRUE),
+      'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP'),
+      'ActionSql' => array('type' => 'text'),
+      'ActionDesc' => array('type' => 'text'),
+      'ActionUndo' => array('type' => 'text'),
+      'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+    ),
+  );
+  
+  $schema['libquality'] = array(
+    'fields' => array(
+         'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+         'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+         'q' => array('type' => 'char', 'length' => 1, 'not null' => TRUE)),
+    'indexes' => array(
+         'iuid' => array('uid'),
+         'ibook' => array('BookId'),
+         'iq' => array('q')),
+    'unique keys' => array(
+         'uq' => array('BookId', 'uid')
+    ),
+  );
+  $schema['libmass'] = array(
+    'fields' => array(
+         'ID' => array('type' => 'serial', 'not null' => TRUE),
+         'Time' => array('type' => 'timestamp', 'not null' => TRUE, 'default' => 'CURRENT_TIMESTAMP'),
+         'Books' => array('type' => 'text'),
+         'N' => array('type' => 'int', 'not null' => TRUE)),
+    'indexes' => array(
+         'iid' => array('ID'),
+         'ibooks' => array('Books'),
+    ),
+  );
+  $schema['libstat'] = array(
+    'fields' => array(
+         'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+         'Mes' => array('type' => 'char', 'length' => 4, 'not null' => TRUE),
+         'N' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE)),
+    'unique keys' => array(
+         'uq' => array('BookId', 'Mes'))
+         
+  );
+  $schema['libanode'] = array(
+    'fields' => array(
+         'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+         'AvtorId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE)),
+    'primary key' => array('nid', 'AvtorId'),
+  );
+  $schema['libbnode'] = array(
+    'fields' => array(
+         'nid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+         'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE)),
+    'primary key' => array('nid', 'BookId'),
+  );
+  $schema['libfilename'] = array(
+    'fields' => array(
+      'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'FileName' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+      ),
+    'primary key' => array('BookId'),
+    'unique key' => array('FileName'),
+  );
+  $schema['libsrclang'] = array(
+    'fields' => array(
+      'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'SrcLang' => array('type' => 'char', 'length' => '2', 'not null' => TRUE, 'default' => ''),
+     ),
+    'primary key' => array('BookId'),
+  );
+  $schema['libblocked'] = array(
+    'fields' => array(
+      'BookId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'block' => array('type' => 'char', 'length' => '1', 'not null' => TRUE, 'default' => ''),
+     ),
+    'primary key' => array('BookId'),
+  );
+  $schema['libpolkarate'] = array(
+    'fields' => array(
+      'Id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'uid' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'rate' => array('type' => 'char', 'length' => '1', 'not null' => TRUE, 'default' => ''),
+     ),
+    'primary key' => array('BookId'),
+    'indexes' => array('rate' => array('rate'))
+  );
+
+  return $schema;
+}
+
+
