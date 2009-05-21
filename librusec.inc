@@ -989,6 +989,28 @@ function libRSS($CacheFile, $hours, $name, $link, $join, $where) {
   exit;
 }
 
+function GET($t) { return mysql_real_escape_string(trim(urldecode($_GET[$t])));}
+function POST($t) { return mysql_real_escape_string(trim(urldecode($_POST[$t])));}
+
+function genres($sid) {
+  $all = (0 == $sid) ? 'selected':'';
+  $o = "<option $all value='0'>Все жанры</option>\n";
+  $genres = SELECT("GenreId, GenreMeta, GenreDesc FROM libgenrelist ORDER BY GenreMeta, GenreDesc");
+  $meta = "";
+  while ($g = dbf($genres)) {
+    $selected = ($g->GenreId == $sid) ? 'selected':'';
+    if($g->GenreMeta != $meta){
+      if($meta != '') $o .= "</optgroup>";
+      $meta = $g->GenreMeta;
+      $o .= "<optgroup label='$meta' value='1'>\n";
+    }
+    $o .= "<option $selected value='$g->GenreId'>$g->GenreDesc</option>\n";
+  }
+  if($meta != '') $o .= "</optgroup>";
+  $url = url(arg(0).'/'.arg(1), array(query => 'genre='));
+  return "<select name='genres' onchange=\"document.location='$url'+this.value;\">".$o."</select>";
+}
+
 function BlockUserNah() {
   Global $user;
   if (user_access('библиотекарь')) return;
