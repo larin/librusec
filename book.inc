@@ -404,7 +404,7 @@ function libBookJoin($b1) {
     $r .= "<td>";
     if ($a2->FileType === 'fb2') $r .= parse_fb2_document_info("b/$b2.fb2");
   }  
-  $r .= "<tr><td><td><a href=/b/$b1/dojoin/$b2>Оставить эту</a><td><a href=/b/$b2/dojoin/$b1>Оставить эту</a></table>";
+  $r .= "<tr><td><td><a href=/b/$b1/dojoin/$b2>Оставить эту</a><td><a href=/b/$b2/dojoin/$b1>Оставить эту</a><tr><td><td colspan=2 align=center><a href=/>Оставить обе</a></table>";
   return $r; 
 }
 
