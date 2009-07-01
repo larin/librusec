@@ -27,8 +27,8 @@ function libSearch($qqq = '') {
   <form action=/booksearch>Поиск книги по названию: <a href=/b>lib.rus.ec/b/</a><input name=book><input type=submit value='искать'></form>
   <form action=/booksearch>Поиск сериала: <a href=/s>lib.rus.ec/s/</a><input name=seq><input type=submit value='искать!'></form>
   <form action=/booksearch>Поиск жанра по коду: <a href=/g>lib.rus.ec/g/</a><input name=genge><input type=submit value='искать'></form>
-  <form action=http://gen.lib.rus.ec/search>Поиск научной литературы: <a href=gen.lib.rus.ec>gen.lib.rus.ec</a></form>
-  <form action=http://lib.rus.ec/booklib>Поиск по файл-эхе SU.BOOKS:<a href=book.lib.rus.ec>book.lib.rus.ec</a><input name=a><input type=submit value='искать'></form>
+  <form action=http://gen.lib.rus.ec/search>Поиск научной литературы: <a href=http://gen.lib.rus.ec>gen.lib.rus.ec</a></form>
+  <form action=http://lib.rus.ec/booklib>Поиск по файл-эхе SU.BOOKS: <a href=http://book.lib.rus.ec>book.lib.rus.ec</a><input name=a><input type=submit value='искать'></form>
   <form action=/booksearch>Общий поиск: <input name=ask value='$asc'><input type=submit value='искать!'></form>";
   if (!$ask) return $searchform;
   $r = "<p>Ищем: $ask</p>\n";
