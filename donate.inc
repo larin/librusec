@@ -155,14 +155,12 @@ $paid
 <th>PayPal
 <th>WU
 <th>Webmoney
-<th>Яндекс
 <th>SMS
 <th>Прочие
 <tr>
 <td>(кредитки, переводы)
 <td>(кредитки)
 <td>(наличные)
-<td>
 <td>
 "//<td>(50 стран)
 ."
@@ -203,8 +201,6 @@ Z630179967226<br>R377382658187
  <input type=hidden name=LMI_PAYEE_PURSE value=Z630179967226>
  <input type=submit value='Заплатить'>
 </form>
-<td valign=top>
-librusec@yandex.ru<br>41001171734018
 "
 /*
 <td valign=top>
