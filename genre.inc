@@ -46,6 +46,7 @@ function libGenre() {
     return libRSS('g/'.$g1->GenreCode, 1, $g1->GenreDesc, "g/$g", "JOIN libgenre USING(BookId)", "GenreId = $g1->GenreId AND");
   
   drupal_set_title($g1->GenreDesc);
+  drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="Новости жанра '.$g1->GenreDesc.' на Либрусеке RSS" href="/g/'.$g1->GenreCode.'/rss" />');  
   if (arg(2) == 'Title' ) {
     $order = 'Title';
     $c1 = 'checked';
@@ -82,8 +83,7 @@ function libGenre() {
     }  
     fclose($fh);
   }
-  return "<a href=/g/$g1->GenreCode/rss class='feed-icon'><img border=0 src=/misc/feed.png alt=RSS title='RSS $g1->GenreDesc' width=16 height=16></a>
-<h3><a href=/g>Список жанров</a></h3>
+  return "<h3><a href=/g>Список жанров</a></h3>
 <form action=/g/$g>Сортировать
 <input type=radio name=order value=a $c1 onClick='location.href=\"/g/$g/Title\"'>По алфавиту 
 <input type=radio name=order value=b $c2 onClick='location.href=\"/g/$g\"'>По авторам
