@@ -386,7 +386,7 @@ function libBookJoin($b1) {
   "<tr><td>Название<td>".DoLibRow($b1, 'mini')."<td>".DoLibRow($b2, 'mini').
   "<tr><td>Размер файла<td>$a1->FileSize<td>$a2->FileSize".
   "<tr><td>Тип файла<td>$a1->FileType<td>$a2->FileType".
-  "<tr><td>Появился в библиотеке<td>".ptm($a1->Time)."<td>".ptm($a2->Time).
+  "<tr><td>Появился в библиотеке<td>".ptm($a1->Time, 0)."<td>".ptm($a2->Time, 0).
   "<tr><td>Авторы<td>".bookav($b1)."<td>".bookav($b2);
   if ($a1->SeqId || $a2->SeqId) {
     $r .= "<tr><td>Сериал<td>";

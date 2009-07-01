@@ -328,7 +328,7 @@ function librusec_user($op, &$edit, &$u) {
   $u->content['summary']['comments'] =  array(
       '#type' => 'user_profile_item',
       '#title' => t('Деятельность'),
-      '#value' => "<a href=/tracker/comments/$u->uid>Посмотреть последние комментарии</a>"
+      '#value' => "<a href=/user/$u->uid/track/comments>Посмотреть последние комментарии</a>"
   );
   $u->content['summary']['lib'] =  array(
       '#type' => 'user_profile_item',

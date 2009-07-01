@@ -11,11 +11,13 @@ function libStat($f='', $f2 = '') {
 <a href=/stat/r>Оценённые книги</a> &nbsp 
 <a href=/stat/a>Популярные авторы</a> &nbsp 
 <a href=/stat/plo>Плодовитые авторы</a> &nbsp; 
+<a href=/stat/my>Моя работа</a> &nbsp; 
 <a href=/stat/document-author>Авторы файлов</a> &nbsp; 
 <a href=/stat/invalid>Невалидные файлы</a>
 <br>";
 
   if ($user->uid > 0) $head .= "Общая статистика Либрусека: <a href=/awstats/>AWStats 2009</a>
+<a href=/awstats/2009.05.html>2009.05</a> 
 <a href=/awstats/2009.04.html>2009.04</a> 
 <a href=/awstats/2009.03.html>2009.03</a> <a href=/awstats/2009.02.html>2009.02</a> <a href=/awstats/2009.01.html>2009.01</a>
 <a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
@@ -61,7 +63,7 @@ function libStat($f='', $f2 = '') {
   );
   set_title($titles[$f]);
 // статистика хранится в кэше, пересчитывается раз в 17 минут, если позволит загрузка сервера.
-  if (!$admin_actions[$f] && !$admin) {
+  if (!$admin_actions[$f] && !$admin && $f != 'my') {
     $cid = "libstat-$f-$f2-".$_GET['page'];
     if ($r = libcg($cid, 10000)) return $head.$r.theme('pager');
     $key = sem_get(13, 30);
@@ -144,8 +146,13 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'r': 
-      $sth = SELECT("SUM(1) as s, SUM(Rate) as r, MAX(Rate) AS m1, MIN(Rate) AS m2, BookId as b FROM librate GROUP BY BookId ORDER BY 1 DESC LIMIT 100");
-      $r = "<table><tr><th>Книга<th>Оценивших<th>Среднее<th>Лучшее<th>Худшее";
+      $order = "ORDER BY 1 DESC";
+      if ($f2 == 'av') $order = "ORDER BY av DESC, 1 DESC";
+      if ($f2 == 'g') $order = "ORDER BY m1 DESC, 1 DESC";
+      if ($f2 == 'b') $order = "ORDER BY m2, 1 DESC";
+      $sth = pager_query("SELECT SUM(1) as s, SUM(Rate) as r, MAX(Rate) AS m1, MIN(Rate) AS m2, BookId as b, AVG(Rate) as av FROM librate GROUP BY BookId $order", 100, 0, 
+                         "SELECT count(*) FROM libbook WHERE NOT Deleted&1");
+      $r = "<table><tr><th>Книга<th><a href=/stat/r>Оценивших</a><th><a href=/stat/r/av>Среднее</a><th><a href=/stat/r/g>Лучшее</a><th><a href=/stat/r/b>Худшее</a>";
       while ($a1=dbf($sth)) 
         $r .= "<tr><td>".DoLibRow($a1->b, 'nobreak author')."<td>$a1->s<td>".(((integer)(100*$a1->r/$a1->s))/100)."<td>$a1->m1<td>$a1->m2\n";
       $r .= "</table>";
@@ -244,7 +251,15 @@ function libStat($f='', $f2 = '') {
         if ($a1->UserName) 
           $r .= '<option value="'.urlencode($a1->UserName)."\">$a1->UserName";
       $r .= '</select>';
-      if ($u = urldecode(arg(2))) {
+      case 'my':
+        if ($f == 'my') {
+          global $user;
+          if (!$user->uid) return $head."Залогиньтесь, будьте так добры";
+          $u = $user->name;
+        } else {
+          $u = urldecode(arg(2));
+        }
+      if ($u) {
         if ($u == 'delete') {
           $w = "WHERE ActionDesc like 'Delete Book%'";
         } elseif ($u == 'nomod' || $u == 'nobibl') { 
@@ -256,8 +271,9 @@ function libStat($f='', $f2 = '') {
           $uid = Sel("uid FROM users WHERE name = \"$u\"");
           $r .= "<h3>Деятельность товарища <a href=/user/$uid>$u</a></h3>";
           if (SuperUser()) $r .= "<a href=\"/stat/undouser/$u\">Откатить работу $u</a>"; 
-          $r .= " &nbsp <a href=\"javascript:cnf('Вы уверены в необходимости блокирования пользователя $u?', '/stat/blockuser/$uid')\">Заблокировать пользователя $u</a>"; 
-          $r .= " &nbsp <a href=/stat/edit/delete>Удаления</a>";
+          if ($f == 'edit')
+          $r .= " &nbsp <a href=\"javascript:cnf('Вы уверены в необходимости блокирования пользователя $u?', '/stat/blockuser/$uid')\">".
+                "Заблокировать пользователя $u</a> &nbsp <a href=/stat/edit/delete>Удаления</a>";
           $w = "WHERE UserName = '$u'";
           $uu = 1;
         }
@@ -282,7 +298,7 @@ function libStat($f='', $f2 = '') {
         $d = preg_replace ('/Delete Book (\d+)/ie', "'Удалил$A книгу '.bl('\\1')", $d);
         $d = preg_replace ('/Avtor (\d+)/ie', " avl('\\1') ", $d);
         $d = preg_replace ('/Book (\d+)/ie', " bl('\\1') ", $d);
-        $d = preg_replace ('/Delete Seq from/', "Изменил$A сериал у книги ".bl($a1->BookId), $d);
+        $d = preg_replace ('/Delete Seq (\d+) from/', "Убрал$A сериал у книги ", $d);
         $d = preg_replace ('/Change Title (\d+) from (.+) to (.+)/e', "'Переименовал$A книгу '.bl('\\1').' из \\2'", $d);
         $d = preg_replace ('/Del genre (\d+) from/e', "'Убрал$A жанр '.Sel('GenreCode FROM libgenrelist WHERE GenreId = \\1').' из \\2'", $d);
         $d = preg_replace ('/Add genre (\d+) to/e', "'Добавил$A жанр '.Sel('GenreCode FROM libgenrelist WHERE GenreId = \\1').' в \\2'", $d);

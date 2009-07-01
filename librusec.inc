@@ -340,7 +340,7 @@ function BookAddSeq($b, $SeqId, $SeqNumb, $level = 0) {
             "DELETE FROM libseq WHERE BookId=$b AND SeqId = $SeqId");
   $sn = Sel ("SeqName FROM libseqname WHERE SeqId=$SeqId", $b);     
   $t = preg_replace("/\($sn\s*-\s*$SeqNumb\)/", '', Sel("Title FROM libbook WHERE BookId = %d", $b));
-  BookSetTitle($b, $t);
+  BookSetTitle($b, $t, Sel("Title1 FROM libbook WHERE BookId = %d", $b));
   libcd('libseq'.$b);          
 }
 
@@ -820,9 +820,12 @@ function ReadAvtorPage($a, &$nid) {
   return libAddImagesToNode($nid);
 }
 
-function ptm($t) {
+function ptm($t, $SkipNonUniq = 1) {
+  static $_lptm;
   preg_match ('/(\d\d\d\d)-(\d\d)-(\d\d)/',$t,$m);
-  return "$m[3].$m[2].$m[1]";
+  $t = "$m[3].$m[2].$m[1]";
+  if ($SkipNonUniq && $_lptm == $t) return '';
+  return $_lptm = $t;
 }
 
 function MakeFileName($b) {

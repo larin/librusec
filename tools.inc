@@ -59,11 +59,8 @@ function libNew() {
     $fields = "Lang, N, FileType, FileSize, Deleted, Title, Title1";
     $sth = pgq("SELECT libbook.BookId AS BookId, $fields, libbook.Time AS Time FROM libbook $joinreaded WHERE NOT (Deleted&1) $wherereaded $lsql $asql ORDER BY BookId DESC", $nn);
     while ($a1 = dbf($sth)) { 
-      $tm = ptm($a1->Time);
-      if  ($ltm !== $tm) {
-        $ltm = $tm;
+      if ($tm = ptm($a1->Time))
         fwrite($fh, "<br><h4>$tm</h4>\n");
-      }
       fwrite($fh, DoLibRow($a1, 'genre authors annotation checkbox new'));
     }  
     fwrite($fh, downloadall('dn')); 

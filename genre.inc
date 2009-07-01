@@ -64,13 +64,8 @@ function libGenre() {
   if ($fh = libOpenCacheFile($CacheFile, 24*3600)) {
     $sth = SELECT("libbook.BookId AS b, Time, Title, Title1, libavtor.AvtorId AS a FROM libbook JOIN libgenre USING(BookId) JOIN libavtor USING(BookId) JOIN libavtorname USING(AvtorId) $joinseq WHERE NOT (1&Deleted) AND GenreId = $g1->GenreId $asql ORDER BY $order");
     while ($a1 = dbf($sth)) { 
-      if ($c3) {
-        $tm = ptm ($a1->Time);
-        if ($ltm !== $tm) {  
-          $ltm = $tm; 
+      if ($c3 && ($tm = ptm($a1->Time)))
           fwrite($fh, "<h4>$tm</h4>\n");  
-        }
-      }  
       if (!$predb[$a1->b]) {
         $predb[$a1->b] = 1;
         $a = $a1->a;

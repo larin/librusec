@@ -70,20 +70,26 @@ function polkaul($u) {
 function libpline($a1, $u='', $rss=0) {
   if (!bwlist_see($a1->UserId)) return '';
   Global $host;
-  $book = Sel("Title FROM libbook WHERE BookId = $a1->BookId");
-  $a = Sel("AvtorId FROM libavtor WHERE BookId = $a1->BookId");
-  $an = Sel("LastName FROM libavtorname WHERE AvtorId = '$a'");
+  $b = $a1->BookId;
+  $book = Sel("Title FROM libbook WHERE BookId = %d", $b);
+  $a = Sel("AvtorId FROM libavtor WHERE BookId = %d", $b);
+  $an = Sel("LastName FROM libavtorname WHERE AvtorId = %d", $a);
   $t = stripslashes($a1->Text);
   if ($rss) {
     $h = "http://$host";
-    $u = $a1->UserId;
-    $user = Sel("name FROM users WHERE uid = $u");
+    $user = Sel("name FROM users WHERE uid = %d", $a1->UserId);
     return "$user про $an: $book\n$t\n";
   } elseif ($u) {
     $user = polkaul($a1->UserId)." про ";
   }  
   $t = preg_replace('/\n/', '<br>', $t);
-  return "$user <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$a1->BookId\">$book</a><br>$t<hr>\n";
+  $sth = SELECT("* FROM libgenre JOIN libgenrelist USING(GenreId) WHERE BookId = %d", $b); 
+  while ($a1 = dbf($sth)) {
+    if ($g) $g .= ', '; 
+    $g .= "<a name=$a1->GenreCode><a href=/g/$a1->GenreCode>$a1->GenreDesc</a>";
+  }  
+  if ($g) $g = " ($g)";
+  return "$user <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$b\">$book</a>$g<br>$t<hr>\n";
 }  
 
 function libPolkaShow($u) {
@@ -92,7 +98,6 @@ function libPolkaShow($u) {
   if ($u == 'all') {
     drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="Новые впечатления на Либрусеке RSS" href="/polka/show/all/rss" />'); 
     set_title("Впечатления о книгах");
-    $r .= "<a href=/polka/show/all/rss class=feed-icon><img src=/misc/feed.png alt=RSS title=RSS width=16 height=16></a><br>"; 
     $S = "FROM libpolka WHERE Flag = '' AND Text <> ''";
     if ($user->uid) 
       $mode = db_result(db_query("SELECT bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $user->uid));
@@ -103,7 +108,13 @@ function libPolkaShow($u) {
       if ($bl) $S = "FROM libpolka WHERE $bl AND Flag = '' AND Text <> ''"; 
     } 
     $sth = pgq("SELECT * $S ORDER BY ID DESC", Sel ("COUNT(*) $S"));
-    while ($a1 = dbf($sth)) $r .= libpline($a1, 1);
+    while ($a1 = dbf($sth)) {
+      if ($tm = ptm($a1->Time)) {
+        if ($r) $r .= '<br>';
+        $r .= "<h4>$tm</h4><br>\n";
+      }
+      $r .= libpline($a1, 1);
+    }  
     return $r."<br>".theme('pager');
   }    
 

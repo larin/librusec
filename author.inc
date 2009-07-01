@@ -1,9 +1,10 @@
 <?php
-include_once drupal_get_path('module', 'librusec').'/librusec.inc';
-include_once drupal_get_path('module', 'librusec').'/list.inc';
-include_once drupal_get_path('module', 'librusec').'/book.inc';
-include_once drupal_get_path('module', 'librusec').'/polka.inc';
-include_once drupal_get_path('module', 'node').'/node.pages.inc';
+module_load_include('inc', 'librusec');
+module_load_include('inc', 'librusec', 'list');
+module_load_include('inc', 'librusec', 'book');
+module_load_include('inc', 'librusec', 'polka');
+module_load_include('inc', 'librusec', 'polka');
+module_load_include('inc', 'node', 'node.pages');
 
 function libAvtor() {
   Global $user, $ttt, $_start_time, $jj;
@@ -123,6 +124,7 @@ else $sa = 'on';
     $wherereaded = "AND libreaded.UserId IS NULL";
   }
   $fields = "libbook.BookId AS BookId, Lang, N, FileType, FileSize, Deleted, Title, Title1";
+  if ($c3) $fields .= ', libbook.Time AS Time';
   if ($joinseq) $seqid = ', SeqId';
   if ($g) {
     $sth = SELECT ("GenreId, $fields $seqid
@@ -152,18 +154,23 @@ GROUP BY 2 ORDER BY $order");
 
   $r .= downloadall('up', $n); 
   while ($a1 = dbf($sth)) {
+    if ($c3 && ($tm = ptm($a1->Time)))
+        $r .= "<h4>$tm</h4>\n";  
     $a1->a = $a;
     $r .= DoLibRow($a1, "genre sequence annotation rate a$a". ($n > 1?'checkbox':''));
   }  
   for ($kk=0; $a1 = dbf($sth1);$kk++) {
     if (!$kk) $r .= "\n<h3>Переводы</h3>";
-    $r .= DoLibRow($a1, "genre sequence annotation rate a$a". ($n > 1?'checkbox':''));
+    if ($c3 && ($tm = ptm($a1->Time)))
+        $r .= "<h4>$tm</h4>\n";  
+    $r .= DoLibRow($a1, "author genre sequence annotation rate a1$a". ($n > 1?'checkbox':''));
   }
     
   $r .= downloadall('dn', $n)."</form>";//. theme('pager');
 
   $ttt[$jj++] = microtime(1);
-  if ($user->uid == 0 || !Sel("uid FROM bwlist WHERE uid = $user->uid LIMIT 1")) { //аноним или пользователь без блэклиста, можно кэшировать
+  if ($user->uid != 1)
+    if($user->uid == 0 || !Sel("uid FROM bwlist WHERE uid = $user->uid LIMIT 1")) { //аноним или пользователь без блэклиста, можно кэшировать
     $cid = "v$a";
     if ($v = libcg($cid, polka))
       return $r.$v;
@@ -332,6 +339,7 @@ function libAvtorAddBook($a) {
     $tname = $_FILES['book']['tmp_name'];
     if (!file_exists("ocr/$fname")) rename($tname,"ocr/$fname");
     $tname = "ocr/$fname";
+    $online = "/online";
   } elseif ($_POST['ftpfile']) { 
     $fname = trim($_POST['ftpfile']);
     $tname = "ocr/$fname";
@@ -384,10 +392,10 @@ function libAvtorAddBook($a) {
       foreach (glob ("$dir/*") as $f) 
         $r .= AddFileToLibrusec($f, 'fb2', '');
       system ("rmdir '$dir'");  
-      return $r;
+      return $r."<br><a href=/upload{$online}/fb2>Добавить ещё одну.</a>";
     }  
   }  
-  return AddFileToLibrusec($tname, $ext, $a);
+  return AddFileToLibrusec($tname, $ext, $a)."<br><a href=/upload{$online}>Добавить ещё одну.</a>";
 }
 
 function libAvtorForum($a, $a1) {
