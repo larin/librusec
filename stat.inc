@@ -6,26 +6,27 @@ function libStat($f='', $f2 = '') {
   Global $user;
   $admin = user_access('библиотекарь');
 
-  $head = "<a href=/stat/24>Топ дня</a> &nbsp; 
+  $head = "<a href=/stat/about>Как устроена библиотека</a><br>Рейтинги: <a href=/stat/24>Топ дня</a> &nbsp; 
 <a href=/stat/w>Топ недели</a> &nbsp; 
 <a href=/stat/b>Популярные книги</a> &nbsp 
 <a href=/stat/r>Оценённые книги</a> &nbsp 
 <a href=/stat/a>Популярные авторы</a> &nbsp 
-<a href=/stat/plo>Плодовитые авторы</a> &nbsp; 
-<a href=/stat/my>Моя работа</a> &nbsp; 
+<a href=/stat/plo>Плодовитые авторы</a> <br><br>
+Библиотечное: <a href=/stat/my>Моя работа</a> &nbsp; 
 <a href=/stat/document-author>Авторы файлов</a> &nbsp; 
-<a href=/stat/invalid>Невалидные файлы</a>
-<br>";
+<a href=/stat/invalid>Невалидные файлы</a> &nbsp <a href=/stat/tot>Расклад по типам файлов</a>
+<br><br>";
 
-  if ($user->uid > 0) $head .= "Общая статистика Либрусека: <a href=/awstats/>AWStats 2009</a>
-<a href=/awstats/2009.06.html>2009.06</a> <a href=/awstats/2009.05.html>2009.05</a> <a href=/awstats/2009.04.html>2009.04</a> 
-<a href=/awstats/2009.03.html>2009.03</a> <a href=/awstats/2009.02.html>2009.02</a> <a href=/awstats/2009.01.html>2009.01</a>
-<a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
+
+  if ($user->uid > 0) $head .= "Общая статистика сайта: <b>2009</b>: <a href=/awstats/>AWStats 2009</a><br>
+<a href=/awstats/2009.06.html>2009.06</a> <br>
+<a href=/awstats/2009.05.html>2009.05</a> <br>
+<a href=/awstats/2009.04.html>2009.04</a> <br>
+<a href=/awstats/2009.03.html>2009.03</a> <br><a href=/awstats/2009.02.html>2009.02</a> <br><a href=/awstats/2009.01.html>2009.01</a><br>
+<b>2008</b>: <a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
 <a href=/awstats/2008.09.html>2008.09</a> <a href=/awstats/2008.08.html>2008.08</a> <a href=/awstats/2008.07.html>2008.07</a> 
 <a href=/awstats/2008.06.html>2008.06</a> <a href=/awstats/2008.05.html>2008.05</a> <a href=/awstats/2008.04.html>2008.04</a> 
-<a href=/awstats/2008.03.html>2008.03</a> <a href=/awstats/2008.02.html>2008.02</a> <a href=/awstats/2008.01.html>2008.01</a>
-
-<br><a href=/stat/about>Как устроена библиотека</a> &nbsp <a href=/stat/tot>Расклад по типам файлов</a> ";
+<a href=/awstats/2008.03.html>2008.03</a> <a href=/awstats/2008.02.html>2008.02</a> <a href=/awstats/2008.01.html>2008.01</a><br>";
 
   $admin_actions = array (
     'edit' => 'Вся деятельность пользователей', 
@@ -366,7 +367,7 @@ function libStat($f='', $f2 = '') {
       $r .= "<p>Всего представлено авторов - ".(Sel("count(*) FROM libavtorname") - Sel ("count(*) FROM libavtoraliase"));
       $r .= "<p>Зарегистрированных пользователей - ".Sel("count(*) FROM users");
       $r .= "<p>Посетителей в день - 100K";
-      $r .= "<p>Обновлений за последний месяц - ".Sel("count(*) FROM libbook WHERE now() - INTERVAL 30 DAY < Time AND NOT (Deleted&1)");
+      $r .= "<p>Обновлений за последние 30 дней - ".Sel("count(*) FROM libbook WHERE now() - INTERVAL 30 DAY < Time AND NOT (Deleted&1)");
     break;
   }
   if ($key) sem_release($key);
