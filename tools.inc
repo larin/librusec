@@ -99,6 +99,7 @@ function libSeq() {
   if ($_GET['sa']) { $sa = 'checked'; Global $PP; $PP/=2;}
 
   $SeqName = Sel("SeqName FROM libseqname WHERE SeqId = $se");
+  $n = Sel ("COUNT(*) FROM libbook JOIN libseq USING(BookId) WHERE SeqId=$se AND NOT (Deleted&1)");
   if (user_access('библиотекарь')) {
     if (arg(2) == 'rename' && ($newseqname = $_POST['newname'])) {
       if ($id = Sel("SeqId FROM libseqname WHERE SeqName = '%s'", $newseqname)) return "<a href=/s/$id>Сериал $newseqname уже существует.</a>";
@@ -119,7 +120,6 @@ function libSeq() {
   }
   set_title($SeqName);
   $S = "BookId FROM libbook JOIN libseq USING(BookId) WHERE SeqId=$se AND NOT (Deleted&1)";
-  $n = Sel ("COUNT(*) FROM libbook JOIN libseq USING(BookId) WHERE SeqId=$se AND NOT (Deleted&1)");
   $t3 = (microtime(1) - $time)*1000;
 
   if ($n > 1) $r .= "<form action=/s/$se>Сортировать
