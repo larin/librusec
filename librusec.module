@@ -227,12 +227,20 @@ function librusec_form(&$node, &$param) {
     if ($node->type == 'adesc') {
       $tt = 'a';
       $nid = db_result(db_query("SELECT nid FROM libanode WHERE AvtorId = %d", $id));
+      if ($nid) {
+        $anid = db_result(db_query("SELECT nid FROM node_revisions WHERE nid = %d", $nid));
+        if (!$anid) { // имеем удаленное описание автора; удаляем из libanode
+          db_query("DELETE FROM libanode WHERE nid = %d", $nid);
+        } else {
+          drupal_goto("node/$nid/edit"); // живое описание; переход к редактированию
+        }
+      } 
     }
     if ($node->type == 'bdesc') {
       $tt = 'a';
       $nid = db_result(db_query("SELECT nid FROM libbnode WHERE BookId = %d", $id));
+      if ($nid) drupal_goto("node/$nid/edit");
     }
-    if ($nid) drupal_goto("node/$nid/edit");
   }  
   if ($node->type == 'adesc') {
     if (!$id) $id = db_result(db_query("SELECT AvtorId FROM libanode WHERE nid = %d", $nid));

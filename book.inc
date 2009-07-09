@@ -125,7 +125,16 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
   $ttt[$jj++] = microtime(1);
   if ($book->block) $r .= " <img src=/img/zamok.gif border=0 alt='Заблокировано'>";
   if ($book->Year) $r .= " &nbsp; издание $book->Year г. ";
-  if (libcanedit($b)) $r .= " &nbsp; <a href=/b/$b/edit>(исправить)</a> $block";
+  $publishseqs = SELECT("* FROM libseq JOIN libseqname USING(SeqId) WHERE BookId = $b AND level > 100");
+  $seqtxt = "";
+  while ($seq = dbf($publishseqs)) {
+  if (!$seqtxt)
+    $r .= " &nbsp; издано в серии ";
+  else
+    $seqtxt .= ", ";
+    $seqtxt .= "<a href=/s/$seq->SeqId>$seq->SeqName</a>" ;
+  }
+  $r .= $seqtxt;  if (libcanedit($b)) $r .= " &nbsp; <a href=/b/$b/edit>(исправить)</a> $block";
   $r .= "<br>";
   $img = '';
   if ($book->FileType == 'fb2') {

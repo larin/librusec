@@ -448,7 +448,7 @@ function DoLibRow($b, $style='') {
   $Seq = libcg($cid1 = 'seq'.$b);
   if (!$Seq) {
     $Seq->BookId = $b;
-    $sth = SELECT("* FROM libseq JOIN libseqname USING(SeqId) WHERE BookId = $b ORDER BY level LIMIT 1");
+    $sth = SELECT("* FROM libseq JOIN libseqname USING(SeqId) WHERE BookId = $b AND level < 100 ORDER BY level LIMIT 1");
     while ($ss = dbf($sth)) {
       $Seq->ids[] = $ss;
       $Seq->allids .= $ss->SeqId.' ';
@@ -816,6 +816,7 @@ function ReadAnnotation($b, &$nid='') {
 
 function ReadAvtorPage($a, &$nid) {
   $nid = Sel("nid FROM libanode WHERE AvtorId = $a");
+  if ($nid) $nid = Sel("nid FROM node_revisions WHERE nid = $nid"); // описание автора не удалено?
   if (!$nid) $nid = Sel("nid FROM node WHERE node.title = $a AND type = 'adesc'");
   return libAddImagesToNode($nid);
 }

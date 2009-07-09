@@ -17,8 +17,7 @@ function libStat($f='', $f2 = '') {
 <br>";
 
   if ($user->uid > 0) $head .= "Общая статистика Либрусека: <a href=/awstats/>AWStats 2009</a>
-<a href=/awstats/2009.05.html>2009.05</a> 
-<a href=/awstats/2009.04.html>2009.04</a> 
+<a href=/awstats/2009.06.html>2009.06</a> <a href=/awstats/2009.05.html>2009.05</a> <a href=/awstats/2009.04.html>2009.04</a> 
 <a href=/awstats/2009.03.html>2009.03</a> <a href=/awstats/2009.02.html>2009.02</a> <a href=/awstats/2009.01.html>2009.01</a>
 <a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
 <a href=/awstats/2008.09.html>2008.09</a> <a href=/awstats/2008.08.html>2008.08</a> <a href=/awstats/2008.07.html>2008.07</a> 
@@ -383,7 +382,7 @@ function libStat($f='', $f2 = '') {
       $r .= "<p>Всего книг в библиотеке - $a1->N томов, $size гигабайт";
       $r .= "<p>Всего представлено авторов - ".(Sel("count(*) FROM libavtorname") - Sel ("count(*) FROM libavtoraliase"));
       $r .= "<p>Зарегистрированных пользователей - ".Sel("count(*) FROM users");
-      $r .= "<p>Посетителей в день - 90K";
+      $r .= "<p>Посетителей в день - 100K";
       $r .= "<p>Обновлений за последний месяц - ".Sel("count(*) FROM libbook WHERE now() - INTERVAL 30 DAY < Time AND NOT (Deleted&1)");
     break;
   }

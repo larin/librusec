@@ -6,13 +6,13 @@ Global $path, $PP;
 function libCheck() {
   switch (arg(1)) { 
     case torrents: {
-      require_once('modules/bittorrent/bt_common.inc');
+      require_once('modules/bittorrent/includes/bt_common.inc');
       foreach(glob('all/*torrent') as $file) {
         print $file;
-        if ($torrent = bdecode_torrent($file)) {
+        if ($torrent = bdecode_file($file)) {
           print " decoded<br>";
-          INSERT(bt_torrents, "nid, info_hash, metadata", "%d, '%s', %b", 
-                             136104, info_hash($torrent), bencode($torrent));
+//          INSERT(bt_torrents, "nid, fid, info_hash, metadata", "136104, 136, '%s', %b", info_hash($torrent), bencode($torrent));
+          INSERT(bt_torrents, "nid, fid, info_hash", "136104, 136, '%s'", info_hash($torrent));
         } 
       }
     } 

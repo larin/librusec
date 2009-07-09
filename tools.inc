@@ -80,10 +80,6 @@ function libSeq() {
   if ($sid) {
     $se = Sel("SeqId FROM libseqname WHERE SeqId = '$sid'");
     if (!$se) $se = Sel("SeqId FROM libseqname WHERE SeqName = '$sid'");
-    if (!$se) {
-//      $se = iconv ("windows-1251", "UTF-8", $sid);
-//      $se = Sel("SeqId FROM libseqname WHERE SeqName = '$se'");
-    }
   }
   $t2 = (microtime(1) - $time)*1000;
   if (!$se) {
@@ -102,12 +98,31 @@ function libSeq() {
   else {$order='SeqNumb';$c1 = 'checked';}
   if ($_GET['sa']) { $sa = 'checked'; Global $PP; $PP/=2;}
 
-  set_title(Sel("SeqName FROM libseqname WHERE SeqId = $se"));
+  $SeqName = Sel("SeqName FROM libseqname WHERE SeqId = $se");
+  if (user_access('библиотекарь')) {
+    if (arg(2) == 'rename' && ($newseqname = $_POST['newname'])) {
+      if ($id = Sel("SeqId FROM libseqname WHERE SeqName = '%s'", $newseqname)) return "<a href=/s/$id>Сериал $newseqname уже существует.</a>";
+      LogAction("UPDATE libseqname SET SeqName='".addslashes($newseqname)."' WHERE SeqId = $se", "Rename Sequence $SeqName($se) to $newseqname", 
+                "UPDATE libseqname SET SeqName='".addslashes($SeqName)."' WHERE SeqId = $se");
+      $SeqName = $newseqname;
+    }
+    $r .= "<form method=POST action=/s/$se/rename><input name=newname value='".check_plain($SeqName)."'><input type=submit value='Переименовать'></form>";
+    if ($n == 0) { //сериал пуст, библиотекарь может его удалить
+      if (arg(2) == 'delete') {
+        LogAction("DELETE FROM libseqname WHERE SeqId=$se", "Delete Sequence $SeqName($se)", 
+                  "INSERT INTO libseqname(SeqId, SeqName) VALUES($se, '".addslashes($SeqName)."')");
+        return "Сериал $SeqName($se) удалён из библиотеки.";
+      } else {
+        $r .= "<br><a href=/s/$se/delete>Удалить сериал</a>";
+      }
+    }  
+  }
+  set_title($SeqName);
   $S = "BookId FROM libbook JOIN libseq USING(BookId) WHERE SeqId=$se AND NOT (Deleted&1)";
   $n = Sel ("COUNT(*) FROM libbook JOIN libseq USING(BookId) WHERE SeqId=$se AND NOT (Deleted&1)");
   $t3 = (microtime(1) - $time)*1000;
-  
-if ($n > 1) $r = "<form action=/s/$se>Сортировать
+
+  if ($n > 1) $r .= "<form action=/s/$se>Сортировать
 <input type=radio name=order value=o $c1 onClick=submit()>По порядку 
 <input type=radio name=order value=a $c2 onClick=submit()>По алфавиту 
 <input type=radio name=order value=t onClick=submit() $c3>По дате поступления 
