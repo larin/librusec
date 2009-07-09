@@ -20,7 +20,8 @@ Global $LoadAvg;
 function LA() {
   Global $LoadAvg;
   if ($LoadAvg > 0) return $LoadAvg;
-  $fh = fopen("/proc/loadavg", 'r');
+  $fh = @fopen("/proc/loadavg", 'r');
+  if(!$fh) return 1; // non-linux fix
   $Data = fread($fh, 55);
   fclose($fh);
   list ($la1) = split(' ', $Data);
@@ -231,7 +232,9 @@ function libcd($cid) {
 }
 
 function apc_inc($cid) {
-  apc_store($cid, 1+apc_fetch($cid));
+  if(function_exists(apc_store)){
+    apc_store($cid, 1+apc_fetch($cid));
+  }
 }
 
 function GetAvtorId ($n1, $n2, $n3) {
