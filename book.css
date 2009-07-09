@@ -9,4 +9,6 @@ H4.book{ /* Subtitle */ font-size : 100%; font-style : italic; font-weight : bol
 BLOCKQUOTE.book{ margin : 0 1em 0.2em 4em }
 H5.book{ font-size : 100%; font-style : italic; font-weight : bold; padding-left : 2.5em;text-align : left; padding-top : 9px;}
 DIV.book{text-align : justify}
+DIV.poem{margin: 0.6em 0 0.6em 50px}
+DIV.stanza{margin: 0.6em 0} 
 </style>
