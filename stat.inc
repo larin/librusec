@@ -1,5 +1,6 @@
 <?php
 module_load_include('inc', 'librusec');
+module_load_include('inc', 'librusec', 'stat_ajax');
 
 function libStat($f='', $f2 = '') {
   Global $user;
@@ -90,34 +91,27 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'w':
-      $r = "<ul>";
-      $sth = SELECT ("SUM(1) as Num, BookId FROM liblog GROUP BY 2 ORDER BY 1 DESC LIMIT 200");
-      while ($a1=dbf($sth)) {  
-        $b = $a1->BookId;
-        $n = $a1->Num + Sel("SUM(1) FROM libreaded WHERE BookId = $b AND Time > SUBDATE(NOW( ), 7)"); 
-        $gb = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b");
-        if ($gb) $READED[$gb] += $n;
-        else $READED[$b] += $n;
-      }
-      arsort($READED);  
-      foreach($READED as $b=>$n) {
-        if ($i++>100) break;
-        $av = libAvtorsNames($b);
-        $r .= "<li>$n: $av - ".bl($b);
-      }
-      $r .= "</ul>";
+      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
+      $r = "<div id='statlist'>";
+      $r .= "Фильтровать по жанру: ".genres($genre);
+      $r .= stat_read_weekly($genre);
+      $r .= "</div>";
     break;
 
     case '24': 
-      $r = "<ul>";
-      $sth = SELECT ("SUM(1) as Num, liblog.BookId as BookId FROM `liblog` JOIN libbook USING (BookId)
-                      WHERE liblog.Time > SUBDATE(NOW( ), 1)
-                      GROUP BY 2 ORDER BY 1 DESC LIMIT 100");
-      while ($a1=dbf($sth)) {  
-        $av = libAvtorsNames($a1->BookId);
-        $r .= "<li>$a1->Num: $av - ".bl($a1->BookId);
-      }
+      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
+      $r = "<div id='statlist'>";
+      $r .= "Фильтровать по жанру: ".genres($genre);
+      $r .= stat_read24($genre);
       $r .= "</ul>";
+    break;
+
+    case 'b':
+      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
+      $r = "<div id='statlist'>";
+      $r = "Фильтровать по жанру: ".genres($genre);
+      $r .= stat_top($genre);
+      $r .= "</div>";
     break;
 
     case 'tot': 
@@ -131,17 +125,6 @@ function libStat($f='', $f2 = '') {
       while ($a1=dbf($sth))   
         $r .= "<a href='/stat/lang/$a1->Lang'>$a1->Lang: $a1->s</a><br>";
       $r .= "</table>";
-    break;
-
-    case 'b': 
-      $r = "<ul>";
-      $sth = pager_query("SELECT libbook.N as Num, BookId FROM libbook WHERE NOT Deleted&1 ORDER BY 1 DESC", 100, 0, 
-                         "SELECT count(*) FROM libbook WHERE NOT Deleted&1");
-      while ($a1=dbf($sth)) {  
-        $av = libAvtorsNames($a1->BookId);
-        $r .= "<li>$a1->Num: $av - ".bl($a1->BookId);
-      }
-      $r .= "</ul>";
     break;
 
     case 'r': 
