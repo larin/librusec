@@ -374,6 +374,7 @@ function libAvtorAddBook($a) {
     $filetype = $ext;
   }
   if (!$filetype || !$ext) return "Непонятки с типом файла. Перезалейте.";
+  if ($filetype == 'exe' || $filetype == 'com') return "Запретный тип файла.";
   $tn1 = translitcyr($tname);
   if (!$tn1) return "Непонятки с названием файла. Перезалейте.";
   if ($tn1 !== $tname && !rename ($tname, $tn1)) 
