@@ -81,6 +81,7 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
     case 'pdf':
     case 'pdb':
     case 'epub':
+    case 'java':
       return libDownloadBook($b, arg(2));
   } 
 
@@ -245,6 +246,7 @@ function libDownloadBook($b, $dtp = 'fb2') {
   libSaveLog($b, $u);
   if ($a1->FileType == 'fb2') {
     if ($dtp == 'pdf') drupal_goto("http://www.fb2pdf.com/convert.php?auto=yes&url=http://lib.rus.ec/b/$b/fb2");
+    if ($dtp == 'java') drupal_goto("http://books.1gb.ru/smsrequest?bookId=$b");
     $zip = MakeZipFile($b, $dtp);
     if ($zip) return drupal_goto($zip);
     else return "Не получилось изготовить файл";

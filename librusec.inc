@@ -379,13 +379,13 @@ function AvtorName($a, $t=' ', $LastFirst = 0) {
   return $an;
 }
 
-function libSelectFileType() {
+function libSelectFileType($b = 0) {
   Global $user;  
-  if (!$user->uid || !variable_get('librusec_Convert', '')) return '';
+  if (!$user->uid || !variable_get('librusec_Convert', '')) return $b ? " &nbsp; (<a href=/b/$b/java>java</a>)" : '';
   $seltp = "<select id=useropt name=dtp onchange=setuseropt('D')>";
   $tp = GetUserOpt('D');
   if (!$tp) $tp = 'fb2';
-  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub') as $fmt) 
+  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub', 'java') as $fmt)  
     $seltp .= '<option '.($fmt==$tp?' selected':'').">$fmt";
   $seltp .= '</select>';
   return $seltp;
@@ -557,7 +557,7 @@ function DoLibRow($b, $style='') {
         $r .= " &nbsp; <a href=/b/$b/read>(читать)</a> &nbsp; <a href=/b/$b/download>(скачать)</a> ";
       else   
         $r .= " <a href=/b/$b/download>(скачать)</a> ";
-      if (strstr($style,'seltype')) $r .= ' '.libSelectFileType();     
+      if (strstr($style,'seltype')) $r .= ' '.libSelectFileType($b);     
     } else {
       $r .= " <a href=/b/$b/download>(скачать $tp)</a> ";
     }  
@@ -794,7 +794,8 @@ function SelectBookSubmit($proc, $skip) {
 function libAddImagesToNode($nid) {
   if (!$nid) return '';
   $ann = Sel("body FROM node_revisions WHERE nid = $nid ORDER BY vid DESC");
-  $sth = SELECT("filepath FROM `upload` JOIN files USING(fid) WHERE `nid` = $nid AND filemime LIKE 'image%'");
+  $vid = Sel("MAX(vid) FROM node_revisions WHERE nid = $nid");
+  $sth = SELECT("filepath FROM `upload` JOIN files USING(fid) WHERE `vid` = $vid AND filemime LIKE 'image%'");
   while ($f=db_result($sth))  
     if (!strstr($ann, $f)) {
       if ($img) $img .= " &nbsp ";
