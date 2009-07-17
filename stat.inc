@@ -1,30 +1,32 @@
 <?php
 module_load_include('inc', 'librusec');
+module_load_include('inc', 'librusec', 'stat_ajax');
 
 function libStat($f='', $f2 = '') {
   Global $user;
   $admin = user_access('библиотекарь');
 
-  $head = "<a href=/stat/24>Топ дня</a> &nbsp; 
+  $head = "<a href=/stat/about>Как устроена библиотека</a><br>Рейтинги: <a href=/stat/24>Топ дня</a> &nbsp; 
 <a href=/stat/w>Топ недели</a> &nbsp; 
 <a href=/stat/b>Популярные книги</a> &nbsp 
 <a href=/stat/r>Оценённые книги</a> &nbsp 
 <a href=/stat/a>Популярные авторы</a> &nbsp 
-<a href=/stat/plo>Плодовитые авторы</a> &nbsp; 
-<a href=/stat/my>Моя работа</a> &nbsp; 
+<a href=/stat/plo>Плодовитые авторы</a> <br><br>
+Библиотечное: <a href=/stat/my>Моя работа</a> &nbsp; 
 <a href=/stat/document-author>Авторы файлов</a> &nbsp; 
-<a href=/stat/invalid>Невалидные файлы</a>
-<br>";
+<a href=/stat/invalid>Невалидные файлы</a> &nbsp <a href=/stat/tot>Расклад по типам файлов</a>
+<br><br>";
 
-  if ($user->uid > 0) $head .= "Общая статистика Либрусека: <a href=/awstats/>AWStats 2009</a>
-<a href=/awstats/2009.06.html>2009.06</a> <a href=/awstats/2009.05.html>2009.05</a> <a href=/awstats/2009.04.html>2009.04</a> 
-<a href=/awstats/2009.03.html>2009.03</a> <a href=/awstats/2009.02.html>2009.02</a> <a href=/awstats/2009.01.html>2009.01</a>
-<a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
+
+  if ($user->uid > 0) $head .= "Общая статистика сайта: <b>2009</b>: <a href=/awstats/>AWStats 2009</a><br>
+<a href=/awstats/2009.06.html>2009.06</a> <br>
+<a href=/awstats/2009.05.html>2009.05</a> <br>
+<a href=/awstats/2009.04.html>2009.04</a> <br>
+<a href=/awstats/2009.03.html>2009.03</a> <br><a href=/awstats/2009.02.html>2009.02</a> <br><a href=/awstats/2009.01.html>2009.01</a><br>
+<b>2008</b>: <a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
 <a href=/awstats/2008.09.html>2008.09</a> <a href=/awstats/2008.08.html>2008.08</a> <a href=/awstats/2008.07.html>2008.07</a> 
 <a href=/awstats/2008.06.html>2008.06</a> <a href=/awstats/2008.05.html>2008.05</a> <a href=/awstats/2008.04.html>2008.04</a> 
-<a href=/awstats/2008.03.html>2008.03</a> <a href=/awstats/2008.02.html>2008.02</a> <a href=/awstats/2008.01.html>2008.01</a>
-
-<br><a href=/stat/about>Как устроена библиотека</a> &nbsp <a href=/stat/tot>Расклад по типам файлов</a> ";
+<a href=/awstats/2008.03.html>2008.03</a> <a href=/awstats/2008.02.html>2008.02</a> <a href=/awstats/2008.01.html>2008.01</a><br>";
 
   $admin_actions = array (
     'edit' => 'Вся деятельность пользователей', 
@@ -90,34 +92,27 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'w':
-      $r = "<ul>";
-      $sth = SELECT ("SUM(1) as Num, BookId FROM liblog GROUP BY 2 ORDER BY 1 DESC LIMIT 200");
-      while ($a1=dbf($sth)) {  
-        $b = $a1->BookId;
-        $n = $a1->Num + Sel("SUM(1) FROM libreaded WHERE BookId = $b AND Time > SUBDATE(NOW( ), 7)"); 
-        $gb = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b");
-        if ($gb) $READED[$gb] += $n;
-        else $READED[$b] += $n;
-      }
-      arsort($READED);  
-      foreach($READED as $b=>$n) {
-        if ($i++>100) break;
-        $av = libAvtorsNames($b);
-        $r .= "<li>$n: $av - ".bl($b);
-      }
-      $r .= "</ul>";
+      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
+      $r = "<div id='statlist'>";
+      $r .= "Фильтровать по жанру: ".genres($genre);
+      $r .= stat_read_weekly($genre);
+      $r .= "</div>";
     break;
 
     case '24': 
-      $r = "<ul>";
-      $sth = SELECT ("SUM(1) as Num, liblog.BookId as BookId FROM `liblog` JOIN libbook USING (BookId)
-                      WHERE liblog.Time > SUBDATE(NOW( ), 1)
-                      GROUP BY 2 ORDER BY 1 DESC LIMIT 100");
-      while ($a1=dbf($sth)) {  
-        $av = libAvtorsNames($a1->BookId);
-        $r .= "<li>$a1->Num: $av - ".bl($a1->BookId);
-      }
+      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
+      $r = "<div id='statlist'>";
+      $r .= "Фильтровать по жанру: ".genres($genre);
+      $r .= stat_read24($genre);
       $r .= "</ul>";
+    break;
+
+    case 'b':
+      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
+      $r = "<div id='statlist'>";
+      $r = "Фильтровать по жанру: ".genres($genre);
+      $r .= stat_top($genre);
+      $r .= "</div>";
     break;
 
     case 'tot': 
@@ -131,17 +126,6 @@ function libStat($f='', $f2 = '') {
       while ($a1=dbf($sth))   
         $r .= "<a href='/stat/lang/$a1->Lang'>$a1->Lang: $a1->s</a><br>";
       $r .= "</table>";
-    break;
-
-    case 'b': 
-      $r = "<ul>";
-      $sth = pager_query("SELECT libbook.N as Num, BookId FROM libbook WHERE NOT Deleted&1 ORDER BY 1 DESC", 100, 0, 
-                         "SELECT count(*) FROM libbook WHERE NOT Deleted&1");
-      while ($a1=dbf($sth)) {  
-        $av = libAvtorsNames($a1->BookId);
-        $r .= "<li>$a1->Num: $av - ".bl($a1->BookId);
-      }
-      $r .= "</ul>";
     break;
 
     case 'r': 
@@ -383,7 +367,7 @@ function libStat($f='', $f2 = '') {
       $r .= "<p>Всего представлено авторов - ".(Sel("count(*) FROM libavtorname") - Sel ("count(*) FROM libavtoraliase"));
       $r .= "<p>Зарегистрированных пользователей - ".Sel("count(*) FROM users");
       $r .= "<p>Посетителей в день - 100K";
-      $r .= "<p>Обновлений за последний месяц - ".Sel("count(*) FROM libbook WHERE now() - INTERVAL 30 DAY < Time AND NOT (Deleted&1)");
+      $r .= "<p>Обновлений за последние 30 дней - ".Sel("count(*) FROM libbook WHERE now() - INTERVAL 30 DAY < Time AND NOT (Deleted&1)");
     break;
   }
   if ($key) sem_release($key);

@@ -1,4 +1,4 @@
-CREATE TABLE `booklib` (
+CREATE TABLE IF NOT EXISTS `booklib` (
   `Title` varchar(99) character set cp1251 NOT NULL default '',
   `Filename` varchar(12) character set latin1 collate latin1_general_ci NOT NULL default '',
   `Date` date NOT NULL default '0000-00-00',
@@ -33,7 +33,7 @@ CREATE TABLE `booklib` (
   KEY `A2N2` (`A2N2`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-CREATE TABLE `libactions` (
+CREATE TABLE IF NOT EXISTS `libactions` (
   `ActionID` int(11) NOT NULL auto_increment,
   `UserName` varchar(60) character set utf8 collate utf8_bin NOT NULL default '',
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP,
@@ -47,21 +47,21 @@ CREATE TABLE `libactions` (
   KEY `BookId` (`BookId`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-CREATE TABLE `libavtor` (
+CREATE TABLE IF NOT EXISTS `libavtor` (
   `BookId` int(10) unsigned NOT NULL default '0',
   `AvtorId` int(10) unsigned NOT NULL default '0',
   PRIMARY KEY  (`BookId`,`AvtorId`),
   KEY `iav` (`AvtorId`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-CREATE TABLE `libtranslator` (
+CREATE TABLE IF NOT EXISTS `libtranslator` (
   `BookId` int(10) unsigned NOT NULL default '0',
   `TranslatorId` int(10) unsigned NOT NULL default '0',
   PRIMARY KEY `u` (`BookId`,`TranslatorId`),
   KEY `iav` (`TranslatorId`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-CREATE TABLE `libavtoraliase` (
+CREATE TABLE IF NOT EXISTS `libavtoraliase` (
   `AliaseId` int(11) NOT NULL auto_increment,
   `BadId` int(11) NOT NULL default '0',
   `GoodId` int(11) NOT NULL default '0',
@@ -71,7 +71,7 @@ CREATE TABLE `libavtoraliase` (
   KEY `GoodId` (`GoodId`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='‡?‡¿‡¡‡À‡»·?‡¿ ‡«‡¿‡Ã‡≈‡Õ·? ‡¿‡¬·?‡Œ·?‡Œ‡¬';
 
-CREATE TABLE `libavtorname` (
+CREATE TABLE IF NOT EXISTS `libavtorname` (
   `AvtorId` int(10) unsigned NOT NULL auto_increment,
   `FirstName` varchar(99) character set utf8 NOT NULL default '',
   `MiddleName` varchar(99) character set utf8 NOT NULL default '',
@@ -91,36 +91,37 @@ CREATE TABLE `libavtorname` (
   FULLTEXT KEY `FirstName_2` (`FirstName`,`MiddleName`,`LastName`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-CREATE TABLE `libbook` (
-  `BookId` int(10) unsigned NOT NULL auto_increment,
-  `FileSize` int(10) unsigned NOT NULL default '0',
-  `Time` timestamp NOT NULL default CURRENT_TIMESTAMP,
-  `Title` varchar(254)  NOT NULL default '',
-  `Title1` varchar(254)  NOT NULL default '',
-  `Lang` char(2)  NOT NULL default 'ru',
-  `FileType` char(4)  NOT NULL default 'fb2',
-  `Year` smallint(6) NOT NULL default '0',
-  `Deleted` char(1)  NOT NULL default '',
-  `Ver` varchar(8) character set utf8 NOT NULL default '',
-  `FileAuthor` varchar(64) character set utf8 NOT NULL,
-  `N` int(10) unsigned NOT NULL default '0',
-  `keywords` varchar(255) character set utf8 NOT NULL,
-  PRIMARY KEY  (`BookId`),
-  UNIQUE KEY `FileName` (`FileName`),
-  KEY `Title` (`Title`),
-  KEY `Title1` (`Title1`),
-  KEY `Year` (`Year`),
-  KEY `Deleted` (`Deleted`),
-  KEY `SeqId` (`SeqId`),
-  KEY `FileType` (`FileType`),
-  KEY `Lang` (`Lang`),
-  KEY `FileSize` (`FileSize`),
-  KEY `FileAuthor` (`FileAuthor`),
-  KEY `N` (`N`),
-  FULLTEXT KEY `Title_3` (`Title`)
-) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-
-CREATE TABLE `libcache` (
+-- CREATE TABLE IF NOT EXISTS `libbook` (
+--   `BookId` int(10) unsigned NOT NULL auto_increment,
+--   `FileName` varchar(12) character set latin1 collate latin1_general_ci NOT NULL default '',
+--   `FileSize` int(10) unsigned NOT NULL default '0',
+--   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP,
+--   `Title` varchar(254)  NOT NULL default '',
+--   `Title1` varchar(254)  NOT NULL default '',
+--   `Lang` char(2)  NOT NULL default 'ru',
+--   `FileType` char(4)  NOT NULL default 'fb2',
+--   `Year` smallint(6) NOT NULL default '0',
+--   `Deleted` char(1)  NOT NULL default '',
+--   `Ver` varchar(8) character set utf8 NOT NULL default '',
+--   `FileAuthor` varchar(64) character set utf8 NOT NULL,
+--   `N` int(10) unsigned NOT NULL default '0',
+--   `keywords` varchar(255) character set utf8 NOT NULL,
+--   PRIMARY KEY  (`BookId`),
+--   UNIQUE KEY `FileName` (`FileName`),
+--   KEY `Title` (`Title`),
+--   KEY `Title1` (`Title1`),
+--   KEY `Year` (`Year`),
+--   KEY `Deleted` (`Deleted`),
+--   KEY `SeqId` (`SeqId`),
+--   KEY `FileType` (`FileType`),
+--   KEY `Lang` (`Lang`),
+--   KEY `FileSize` (`FileSize`),
+--   KEY `FileAuthor` (`FileAuthor`),
+--   KEY `N` (`N`),
+--   FULLTEXT KEY `Title_3` (`Title`)
+-- ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+-- 
+CREATE TABLE IF NOT EXISTS `libcache` (
   `BookId` int(11) NOT NULL default '0',
   `TOC` text  NOT NULL,
   `Cover` varchar(255)  NOT NULL default '',
@@ -128,14 +129,14 @@ CREATE TABLE `libcache` (
   PRIMARY KEY  (`BookId`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-CREATE TABLE `libcache1` (
+CREATE TABLE IF NOT EXISTS `libcache1` (
   `BookId` int(11) NOT NULL default '0',
   `Advise` varchar(255) NOT NULL default '',
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   PRIMARY KEY  (`BookId`)
 ) DEFAULT CHARSET=utf8;
 
-CREATE TABLE `libdonations` (
+CREATE TABLE IF NOT EXISTS `libdonations` (
   `DonateId` int(11) NOT NULL auto_increment,
   `uid` int(11) NOT NULL default '0',
   `Sum` int(11) NOT NULL default '0',
@@ -146,7 +147,7 @@ CREATE TABLE `libdonations` (
   PRIMARY KEY  (`DonateId`)
 );
 
-CREATE TABLE `libgenre` (
+CREATE TABLE IF NOT EXISTS `libgenre` (
   `Id` int(10) unsigned NOT NULL auto_increment,
   `BookId` int(10) unsigned NOT NULL default '0',
   `GenreId` int(10) unsigned NOT NULL default '0',
@@ -156,7 +157,7 @@ CREATE TABLE `libgenre` (
   KEY `ibook` (`BookId`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ROW_FORMAT=DYNAMIC;
 
-CREATE TABLE `libgenrelist` (
+CREATE TABLE IF NOT EXISTS `libgenrelist` (
   `GenreId` int(10) unsigned NOT NULL auto_increment,
   `GenreCode` varchar(45)  NOT NULL default '',
   `GenreDesc` varchar(99)  NOT NULL default '',
@@ -165,7 +166,7 @@ CREATE TABLE `libgenrelist` (
   KEY `meta` (`GenreMeta`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-CREATE TABLE `libjoinedbooks` (
+CREATE TABLE IF NOT EXISTS `libjoinedbooks` (
   `Id` int(11) NOT NULL auto_increment,
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP,
   `BadId` int(11) NOT NULL default '0',
@@ -176,7 +177,7 @@ CREATE TABLE `libjoinedbooks` (
   KEY `GoodId` (`GoodId`)
 );
 
-CREATE TABLE `liblog` (
+CREATE TABLE IF NOT EXISTS `liblog` (
   `ID` int(10) unsigned NOT NULL auto_increment,
   `UserId` char(15) character set ascii collate ascii_bin NOT NULL default '',
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP,
@@ -187,7 +188,7 @@ CREATE TABLE `liblog` (
   KEY `url` (`BookId`)
 )DEFAULT CHARSET=utf8 DELAY_KEY_WRITE=1;
 
-CREATE TABLE `libmass` (
+CREATE TABLE IF NOT EXISTS `libmass` (
   `ID` int(10) unsigned NOT NULL auto_increment,
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   `Books` varchar(1000) NOT NULL,
@@ -198,7 +199,7 @@ CREATE TABLE `libmass` (
   KEY `N` (`N`)
 );
 
-CREATE TABLE `libpolka` (
+CREATE TABLE IF NOT EXISTS `libpolka` (
   `Id` int(10) unsigned NOT NULL auto_increment,
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP,
   `BookId` int(11) NOT NULL default '0',
@@ -213,7 +214,7 @@ CREATE TABLE `libpolka` (
   KEY `User` (`UserId`)
 );
 
-CREATE TABLE `libquality` (
+CREATE TABLE IF NOT EXISTS `libquality` (
   `BookId` int(11) NOT NULL,
   `uid` int(11) NOT NULL,
   `q` char(1) NOT NULL,
@@ -223,7 +224,7 @@ CREATE TABLE `libquality` (
   KEY `q` (`q`)
 );
 
-CREATE TABLE `librate` (
+CREATE TABLE IF NOT EXISTS `librate` (
   `ID` int(11) NOT NULL auto_increment,
   `BookId` int(11) NOT NULL,
   `UserId` int(11) NOT NULL,
@@ -233,7 +234,7 @@ CREATE TABLE `librate` (
   KEY `UserId` (`UserId`)
 );
 
-CREATE TABLE `libreaded` (
+CREATE TABLE IF NOT EXISTS `libreaded` (
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP,
   `BookId` int(11) NOT NULL,
   `UserId` int(11) NOT NULL,
@@ -242,14 +243,14 @@ CREATE TABLE `libreaded` (
   KEY `UserId` (`UserId`)
 );
 
-CREATE TABLE `libseqname` (
+CREATE TABLE IF NOT EXISTS `libseqname` (
   `SeqId` int(10) unsigned NOT NULL auto_increment,
   `SeqName` varchar(254) NOT NULL default '',
   PRIMARY KEY  (`SeqId`),
   UNIQUE KEY `SeqName` (`SeqName`)
 ) DEFAULT CHARSET=utf8;
 
-CREATE TABLE `libseq` (
+CREATE TABLE IF NOT EXISTS `libseq` (
   `BookId` int(11) NOT NULL,
   `SeqId` int(11) NOT NULL,
   `SeqNumb` tinyint(4) NOT NULL,
@@ -257,14 +258,14 @@ CREATE TABLE `libseq` (
   PRIMARY KEY  (`BookId`,`SeqId`)
 );
 
-CREATE TABLE `libstat` (
+CREATE TABLE IF NOT EXISTS `libstat` (
   `BookId` int(11) NOT NULL,
   `Mes` char(4) NOT NULL,
   `N` int(11) NOT NULL,
   UNIQUE KEY `BookId` (`BookId`,`Mes`)
 );
 
-CREATE TABLE `libuseropt` (
+CREATE TABLE IF NOT EXISTS `libuseropt` (
   `User` int(11) NOT NULL default '0',
   `Opt` char(1) NOT NULL,
   `Value` char(4) NOT NULL,
@@ -272,33 +273,33 @@ CREATE TABLE `libuseropt` (
   KEY `User` (`User`)
 );
 
-CREATE TABLE `libanode` (
+CREATE TABLE IF NOT EXISTS `libanode` (
   `nid` int(10) unsigned NOT NULL,
   `AvtorId` int(10) unsigned NOT NULL,
   PRIMARY KEY  (`nid`,`AvtorId`)
 );
 
-CREATE TABLE `libbnode` (
+CREATE TABLE IF NOT EXISTS `libbnode` (
   `nid` int(10) unsigned NOT NULL,
   `BookId` int(10) unsigned NOT NULL,
   PRIMARY KEY  (`nid`,`BookId`)
 );
 
-CREATE TABLE `libsrclang` (
+CREATE TABLE IF NOT EXISTS `libsrclang` (
   `BookId` int(11) NOT NULL,
   `SrcLang` char(2) NOT NULL,
   PRIMARY KEY  (`BookId`),
   KEY `SrcLang` (`SrcLang`)
 );
 
-CREATE TABLE `libblocked` (
+CREATE TABLE IF NOT EXISTS `libblocked` (
   `BookId` int(11) NOT NULL,
   `uid` int(11) NOT NULL,
   `block` char(1) NOT NULL,
   PRIMARY KEY  (`BookId`)
 );
 
-CREATE TABLE `libpolkarate` (
+CREATE TABLE IF NOT EXISTS `libpolkarate` (
   `Id` int(11) NOT NULL COMMENT 'libpolka.id',
   `uid` int(11) NOT NULL,
   `rate` tinyint(4) NOT NULL,
@@ -306,7 +307,7 @@ CREATE TABLE `libpolkarate` (
   KEY `rate` (`rate`)
 );
 
-CREATE TABLE `libtopadvert` (
+CREATE TABLE IF NOT EXISTS `libtopadvert` (
   `BookId` int(11) NOT NULL,
   `Time` timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP,
   PRIMARY KEY  (`BookId`),

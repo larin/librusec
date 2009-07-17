@@ -20,7 +20,8 @@ Global $LoadAvg;
 function LA() {
   Global $LoadAvg;
   if ($LoadAvg > 0) return $LoadAvg;
-  $fh = fopen("/proc/loadavg", 'r');
+  $fh = @fopen("/proc/loadavg", 'r');
+  if(!$fh) return 1; // non-linux fix
   $Data = fread($fh, 55);
   fclose($fh);
   list ($la1) = split(' ', $Data);
@@ -77,38 +78,46 @@ $ShowEN = $user->uid ? 1 : variable_get('librusec_ShowEN', '');
 $ButtonStyle = "class=button";
 $debug = 0;
 
+// что это за хрень на польском? ;)
 # Z carskiej imperii
-
 # Podania i legendy polskie, ruskie i litewskie
 
+// функция, осуществляющая романизацию строки.
+// большая просьба отрыть где-нибудь нормальный код, учитывающий все символы.
 function translitcyr($cyr_str) {
 $transtbl = array(
-   "Ґ"=>"G","Ё"=>"Yo","Є"=>"E","Ї"=>"Yi","І"=>"I",
-   "ą" => "a", "ĉ" => "c", "ć" => "c", "ę" => "e", 
-   "ĵ" => "j", "ł" => "l", "ń" => "n", "ó" => "o", "ś" => "s", "ź" => "z", "ż" => "z",  
-   "Ą" => "A", "Ć" => "C", "Ć" => "c", "Ę" => "E", 
-   "Ĵ" => "J", "Ł" => "L", "Ń" => "N", "Ó" => "O", "Ś" => "S", "Ź" => "Z", "Ż" => "Z",
-   "ŭ" => "u", "ĥ" => "h", "Ŭ" => "U", "Ĥ" => "H",    'ў'=>'y',    'Ў'=>'Y',
-   "і"=>"i","ґ"=>"g","ё"=>"yo","№"=>"N","є"=>"e",
-   "ї"=>"yi","А"=>"A","Б"=>"B","В"=>"V","Г"=>"G",
-   "Д"=>"D","Е"=>"E","Ж"=>"Zh","З"=>"Z","И"=>"I",
+// кириллица
+   "А"=>"A","Б"=>"B","В"=>"V","Г"=>"G",
+   "Д"=>"D","Е"=>"E","Ё"=>"Yo","Ж"=>"Zh","З"=>"Z","И"=>"I",
    "Й"=>"Y","К"=>"K","Л"=>"L","М"=>"M","Н"=>"N",
    "О"=>"O","П"=>"P","Р"=>"R","С"=>"S","Т"=>"T",
    "У"=>"U","Ф"=>"F","Х"=>"H","Ц"=>"Ts","Ч"=>"Ch",
    "Ш"=>"Sh","Щ"=>"Sch","Ъ"=>"","Ы"=>"Yi","Ь"=>"",
    "Э"=>"E","Ю"=>"Yu","Я"=>"Ya","а"=>"a","б"=>"b",
-   "в"=>"v","г"=>"g","д"=>"d","е"=>"e","ж"=>"zh",
+   "в"=>"v","г"=>"g","д"=>"d","е"=>"e","ё"=>"yo","ж"=>"zh",
    "з"=>"z","и"=>"i","й"=>"y","к"=>"k","л"=>"l",
    "м"=>"m","н"=>"n","о"=>"o","п"=>"p","р"=>"r",
    "с"=>"s","т"=>"t","у"=>"u","ф"=>"f","х"=>"h",
    "ц"=>"ts","ч"=>"ch","ш"=>"sh","щ"=>"sch","ъ"=>"",
-   "ы"=>"yi","ь"=>"","э"=>"e","ю"=>"yu","я"=>"ya", '$' => 'S',
+   "ы"=>"yi","ь"=>"","э"=>"e","ю"=>"yu","я"=>"ya",
+// дополнительные кириллические символы 
+   "Ґ"=>"G","ґ"=>"g","Є"=>"Ye","є"=>"ye","Ї"=>"Yi","ї"=>"yi","І"=>"I","і"=>"i",'ў'=>'w','Ў'=>'W',
+   'Џ'=>'Dzh','џ'=>'dzh','Ћ'=>'Ch','ћ'=>'ch','Ј'=>'y','ј'=>'y',
+   
+
+// остальные 
+   "Ą" => "On","ą" => "on","Ć" => "Ch","ć" => "ch","Ę" => "Eu","ę" => "eu","Ł" => "W","ł" => "w", // pl
+   "Ń" => "N","ń" => "n","Ó" => "U","ó" => "u","Ś" => "Sch","ś" => "sch","Ź" => "Zh","ź" => "zh","Ż" => "Zh","ż" => "zh", // pl
+   // cz
+   "ĉ" => "c","ĵ" => "j","Ĵ" => "J","ŭ" => "u","ĥ" => "h","Ŭ" => "U","Ĥ" => "H",
+
+// дополнительные символы
    " "=>'_', '"'=>'', "'"=>'',":"=>'', "("=>'_',")"=>'_',"["=>'_',"]"=>'_',"{"=>'_',"}"=>'_',
-   '…' => '.', '!'=>'','“'=>'','”'=>'', '`'=>'', '—'=>'-', '–'=>'-',
+   '…' => '.', '!'=>'','“'=>'','”'=>'', '`'=>'', '—'=>'-', '–'=>'-',"№"=>"N",'$' => 'S',
    '?'=>'',','=>'','\''=>'','«'=>'','»'=>'', '&'=>'_', '#' => 'N');
    for ($i = 1; $i < 32; $i++) $transtbl[chr($i)] = '';
    return str_replace('__','_', strtr($cyr_str, $transtbl));
-}  
+}
 
 function dbq($st) {
   $args = func_get_args();
@@ -231,7 +240,9 @@ function libcd($cid) {
 }
 
 function apc_inc($cid) {
-  apc_store($cid, 1+apc_fetch($cid));
+  if(function_exists(apc_store)){
+    apc_store($cid, 1+apc_fetch($cid));
+  }
 }
 
 function GetAvtorId ($n1, $n2, $n3) {
@@ -985,6 +996,28 @@ function libRSS($CacheFile, $hours, $name, $link, $join, $where) {
   header('Content-Type: application/rss+xml; charset=utf-8'); 
   echo libReadCacheFile($CacheFile);
   exit;
+}
+
+function GET($t) { return mysql_real_escape_string(trim(urldecode($_GET[$t])));}
+function POST($t) { return mysql_real_escape_string(trim(urldecode($_POST[$t])));}
+
+function genres($sid) {
+  $all = (0 == $sid) ? 'selected':'';
+  $o = "<option $all value='0'>Все жанры</option>\n";
+  $genres = SELECT("GenreId, GenreMeta, GenreDesc FROM libgenrelist ORDER BY GenreMeta, GenreDesc");
+  $meta = "";
+  while ($g = dbf($genres)) {
+    $selected = ($g->GenreId == $sid) ? 'selected':'';
+    if($g->GenreMeta != $meta){
+      if($meta != '') $o .= "</optgroup>";
+      $meta = $g->GenreMeta;
+      $o .= "<optgroup label='$meta' value='1'>\n";
+    }
+    $o .= "<option $selected value='$g->GenreId'>$g->GenreDesc</option>\n";
+  }
+  if($meta != '') $o .= "</optgroup>";
+  $url = url(arg(0).'/'.arg(1), array(query => 'genre='));
+  return "<select name='genres' onchange=\"document.location='$url'+this.value;\">".$o."</select>";
 }
 
 function BlockUserNah() {
