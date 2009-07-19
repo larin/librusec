@@ -37,13 +37,13 @@ function libPolka() {
     break;
     case 'del':
       if (($b = 1*arg(2)) && $u) {
-        db_query("DELETE FROM libpolka WHERE UserId = $u AND BookId = $b");
+        Delete('libpolka WHERE UserId = %d AND BookId = %d', $u, $b);
         libsettag(polka);  
       }  
     break;
     case 'delrd':
       if (($b = 1*arg(2)) && $u) 
-        db_query("DELETE FROM libreaded WHERE UserId = $u AND BookId = $b");
+        Delete('libreaded WHERE UserId = %d AND BookId = %d', $u, $b);
     return $r.libPolkaReaded($u);
   }
 
@@ -69,7 +69,7 @@ function polkaul($u) {
 
 function libpline($a1, $u='', $rss=0) {
   if (!bwlist_see($a1->UserId)) return '';
-  Global $host;
+  Global $user, $host;
   $b = $a1->BookId;
   $book = Sel("Title FROM libbook WHERE BookId = %d", $b);
   $a = Sel("AvtorId FROM libavtor WHERE BookId = %d", $b);
@@ -77,37 +77,46 @@ function libpline($a1, $u='', $rss=0) {
   $t = stripslashes($a1->Text);
   if ($rss) {
     $h = "http://$host";
-    $user = Sel("name FROM users WHERE uid = %d", $a1->UserId);
-    return "$user про $an: $book\n$t\n";
+    $username = Sel("name FROM users WHERE uid = %d", $a1->UserId);
+    return "$username про $an: $book\n$t\n";
   } elseif ($u) {
-    $user = polkaul($a1->UserId)." про ";
+    $username = polkaul($a1->UserId)." про ";
   }  
   $t = preg_replace('/\n/', '<br>', $t);
   $sth = SELECT("* FROM libgenre JOIN libgenrelist USING(GenreId) WHERE BookId = %d", $b); 
   while ($a1 = dbf($sth)) {
     if ($g) $g .= ', '; 
     $g .= "<a name=$a1->GenreCode><a href=/g/$a1->GenreCode>$a1->GenreDesc</a>";
+    if ($user->uid) $g .= "(<a href=/g/$a1->GenreId/hide>скрыть</a>)";
   }  
   if ($g) $g = " ($g)";
-  return "$user <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$b\">$book</a>$g<br>$t<hr>\n";
+  return "$username <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$b\">$book</a>$g<br>$t<hr>\n";
 }  
 
 function libPolkaShow($u) {
-  Global $rates;
-  Global $user;
+  Global $user, $rates;
   if ($u == 'all') {
     drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="Новые впечатления на Либрусеке RSS" href="/polka/show/all/rss" />'); 
     set_title("Впечатления о книгах");
-    $S = "FROM libpolka WHERE Flag = '' AND Text <> ''";
-    if ($user->uid) 
-      $mode = db_result(db_query("SELECT bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $user->uid));
+    if ($user->uid) {
+      $mode = Sel("bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $user->uid);
+      $genrebl = Sel('GenreId FROM libuserblackgenre WHERE UserId=%d LIMIT 1', $u);
+    }
+    $fields = "BookId, libpolka.UserId AS UserId, Text, Time";        
+    if ($genrebl) {
+      $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE (isnull(bg.UserId) OR bg.UserId != $user->uid) AND";
+      $group = "GROUP BY BookId";
+    } else {
+      $where = "WHERE";
+    } 
+    $S = "FROM libpolka $where Flag = '' AND Text <> ''";
     if ($mode == 'w') {
-      $S = "FROM libpolka JOIN {bwlist} ON (UserId=uid2) WHERE uid='$user->uid' AND bw='w' AND Flag = '' AND Text <> ''";
+      $S = "FROM libpolka JOIN {bwlist} ON (UserId=uid2) $where uid='$user->uid' AND bw='w' AND Flag = '' AND Text <> ''";
     } elseif ($mode == 'b') {
       $bl .= bwlist_makewhere('UserId');
-      if ($bl) $S = "FROM libpolka WHERE $bl AND Flag = '' AND Text <> ''"; 
+      if ($bl) $S = "FROM libpolka $where $bl AND Flag = '' AND Text <> ''"; 
     } 
-    $sth = pgq("SELECT * $S ORDER BY ID DESC", Sel ("COUNT(*) $S"));
+    $sth = pgq("SELECT $fields $S $group ORDER BY libpolka.ID DESC", Sel ("COUNT(*) $S"));
     while ($a1 = dbf($sth)) {
       if ($tm = ptm($a1->Time)) {
         if ($r) $r .= '<br>';
@@ -115,7 +124,7 @@ function libPolkaShow($u) {
       }
       $r .= libpline($a1, 1);
     }  
-    return $r."<br>".theme('pager');
+    return libListBlackGenre().$r."<br>".theme('pager');
   }    
 
   if ($u) $u = Sel("uid FROM users WHERE uid = '$u' OR name = '$u'");
@@ -128,7 +137,7 @@ function libPolkaShow($u) {
   $sth = SELECT ("BookId, Rate FROM librate WHERE UserId = $u ORDER BY Rate DESC");
   while ($a1 = dbf($sth)) $r .= "<tr><th>$a1->Rate (".$rates[$a1->Rate].") &nbsp; <td>".DoLibRow($a1->BookId, 'rate nobreak author')."\n";
   $r .= "</table>\n";  
-  return $r;
+  return libListBlackGenre().$r;
 }
 
 function libPolkaFriends() {

@@ -313,3 +313,9 @@ CREATE TABLE IF NOT EXISTS `libtopadvert` (
   PRIMARY KEY  (`BookId`),
   KEY `Time` (`Time`)
 );
+
+CREATE TABLE IF NOT EXISTS `libuserblackgenre` (
+`UserId` INT NOT NULL ,
+`GenreId` INT NOT NULL ,
+PRIMARY KEY ( `UserId` , `GenreId` )
+);

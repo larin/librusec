@@ -217,14 +217,14 @@ function libTools() {
       switch($_GET['op']) {
         case 'setrate':
           $r = 1*($_GET['r']);
-          if ($r == 0) db_query("DELETE FROM librate WHERE BookId = $b AND UserId = $u");
+          if ($r == 0) Delete('librate WHERE BookId = %d AND UserId = %d', $b, $u);
           else if ($r > 0 && $r < 6) db_query("INSERT INTO librate (BookId, UserId, Rate) VALUES($b, $u, $r) ON DUPLICATE KEY UPDATE Rate=$r");
           libcd("librate$u");
         exit;
 
         case 'setquality':
           $q = 1*($_GET['qq']);
-          if ($q == 0) db_query("DELETE FROM libquality WHERE BookId = $b AND uid = $u");
+          if ($q == 0) Delete('libquality WHERE BookId = %d AND uid = %d', $b, $u);
           else db_query("INSERT INTO libquality (q, BookId, uid) VALUES ($q, $b, $u) ON DUPLICATE KEY UPDATE q=$q");
           bookquality($b, 1); //reset cache
         exit;

@@ -42,8 +42,18 @@ function libGenre() {
   if (!$g1) $g1 = S("* FROM libgenrelist WHERE GenreDesc like '%$g%' ORDER BY GenreId BY LIMIT 1");
   if (!$g1) return "Не существует жанра $g Извините.";
 
-  if (arg(2) == 'rss')  
-    return libRSS('g/'.$g1->GenreCode, 1, $g1->GenreDesc, "g/$g", "JOIN libgenre USING(BookId)", "GenreId = $g1->GenreId AND");
+  switch(arg(2)) {
+    case rss:  
+      return libRSS('g/'.$g1->GenreCode, 1, $g1->GenreDesc, "g/$g", "JOIN libgenre USING(BookId)", "GenreId = $g1->GenreId AND");
+    case show:
+        $r = "<h2>Жанр $g1->GenreDesc удалён из чёрного списка.</h2>";
+        Delete('libuserblackgenre WHERE UserId = %d AND GenreId = %d', $user->uid, $g1->GenreId);
+      break;  
+    case hide:
+        $r = "<h2>Жанр $g1->GenreDesc добавлен в чёрный список.</h2>";
+        Insert('libuserblackgenre', 'UserId, GenreId', "$user->uid, $g1->GenreId");
+      break;  
+  }
   
   drupal_set_title($g1->GenreDesc);
   drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="Новости жанра '.$g1->GenreDesc.' на Либрусеке RSS" href="/g/'.$g1->GenreCode.'/rss" />');  
@@ -78,7 +88,7 @@ function libGenre() {
     }  
     fclose($fh);
   }
-  return "<h3><a href=/g>Список жанров</a></h3>
+  return $r."<h3><a href=/g>Список жанров</a></h3>
 <form action=/g/$g>Сортировать
 <input type=radio name=order value=a $c1 onClick='location.href=\"/g/$g/Title\"'>По алфавиту 
 <input type=radio name=order value=b $c2 onClick='location.href=\"/g/$g\"'>По авторам

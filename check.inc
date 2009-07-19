@@ -5,6 +5,12 @@ Global $path, $PP;
 
 function libCheck() {
   switch (arg(1)) { 
+    case createtorrent:
+      print createtorrent;
+      $b = (int)arg(2);
+      CreateTorrent($b);
+      exit;
+    break;
     case torrents: {
       require_once('modules/bittorrent/includes/bt_common.inc');
       foreach(glob('all/*torrent') as $file) {
@@ -402,4 +408,17 @@ function libdb() {
   $book = new DB;
   print $book->Title(1);
   exit;
+}
+
+function CreateTorrent($b) {
+  $dir = 'b.usr/';
+  $fn = Sel("FileName FROM libfilename WHERE BookId = %d", $b);
+  if (!$fn) return 0;
+  chdir ($dir);
+  if (!file_exists($fn)) return 0;
+#  print `/usr/bin/maketorrent-console --target librusec.$b.torrent http://torrent.rus.ec/bt/ $fn`;
+  chdir("/www");
+  $torent = 'librusec.'.$b.'.torrent';
+  rename($dir.$torent, 'torrents/'.$torent);
+  print "  rename($dir$torent, 'torrents/'.$torent);";
 }

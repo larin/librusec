@@ -159,7 +159,8 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
       } else $img = ''; 
     }  
   }
-  $r .= $img."<a href=javascript:show('link1')>(ссылка для форума (BBCode))</a> <a href=javascript:show('link2')>(ссылка для блога (HTML))</a><br>
+  if ($user->theme != 'mobile')
+    $r .= $img."<a href=javascript:show('link1')>(ссылка для форума (BBCode))</a> <a href=javascript:show('link2')>(ссылка для блога (HTML))</a><br>
 <div id=link1 style='position:absolute;left:-4000px'><br><br>".'[url='."$host/b/$b".']<br>[b]'.$tit.'[/b]<br>'.$imgf.'['."/url]<br><br></div>
 <div id=link2 style='position:absolute;left:-4000px'><br><br>&lt;a href=$host/b/$b&gt;<br>&lt;b&gt;$tit&lt;/b&gt;<br>$imgb&lt;/a&gt;<br><br></div>";
 

@@ -91,7 +91,6 @@ function libStat($f='', $f2 = '') {
     case 'w':
       $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
       $r = "<div id='statlist'>";
-//      $r .= "Фильтровать по жанру: ".genres($genre);
       $r .= stat_read_weekly($genre);
       $r .= "</div>";
     break;
@@ -99,15 +98,13 @@ function libStat($f='', $f2 = '') {
     case '24': 
       $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
       $r = "<div id='statlist'>";
-//      $r .= "Фильтровать по жанру: ".genres($genre);
       $r .= stat_read24($genre);
-      $r .= "</ul>";
+      $r .= "</div>";
     break;
 
     case 'b':
       $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
       $r = "<div id='statlist'>";
-//      $r = "Фильтровать по жанру: ".genres($genre);
       $r .= stat_top($genre);
       $r .= "</div>";
     break;

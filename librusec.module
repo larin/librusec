@@ -104,6 +104,7 @@ Global $buke, $bukr;
 
 function librusec_block($op='list', $delta='', $edit = array()) {
   Global $buke, $bukr, $user;    
+  $u = $user->uid;
   if ($op == 'list') 
     return array('polka' =>      array ('info' => 'Впечатления о книгах', 'weight' => 10, 'status' => 1, 'region' => 'right'),
                  'abc'   =>      array ('info' => 'Линейка буковок',      'weight' => -6, 'status' => 1, 'region' => 'top'),
@@ -118,23 +119,33 @@ function librusec_block($op='list', $delta='', $edit = array()) {
     case 'view.polka':
       $limit = variable_get('librusec_annN', 10);
       if ($limit < 5) $limit = 10;
-      $limit = " Text != '' AND Flag = '' ORDER BY ID DESC LIMIT ".$limit; 
       $cid = "blockpolka";
-      if ($user->uid) 
-        $mode = db_result(db_query("SELECT bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $user->uid));
+      if ($u) {
+        $mode = Sel("bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $u);
+        $genrebl = Sel('GenreId FROM libuserblackgenre WHERE UserId=%d LIMIT 1', $u);
+      }
+      $fields = "BookId, libpolka.UserId AS UserId, Text, Time";        
+      if ($genrebl) {
+        $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE (isnull(bg.UserId) OR bg.UserId != $u) AND";
+        $limit = " Text != '' AND Flag = '' GROUP BY libpolka.BookId ORDER BY libpolka.ID DESC LIMIT ".$limit; 
+    } else {
+        $where = "WHERE";
+        $limit = " Text != '' AND Flag = '' ORDER BY ID DESC LIMIT ".$limit; 
+      } 
       if ($mode == 'w') {
-        $sth = db_query ("SELECT * FROM libpolka JOIN {bwlist} ON (UserId=uid2) WHERE uid=%d AND bw='w' AND $limit", $user->uid);
-        $cid .= 'b'.$user->uid;
+        $sth = SELECT("$fields FROM libpolka JOIN {bwlist} ON (UserId=uid2) $where uid=%d AND bw='w' AND $limit", $u);
+        $cid .= 'b'.$u;
       } elseif ($mode == 'b') {
         $bl .= bwlist_makewhere('UserId');
         if ($bl) $limit = "$bl AND $limit"; 
-        $sth = db_query ("SELECT * FROM libpolka WHERE $limit");
-        $cid .= 'b'.$user->uid;
-      } else 
-        $sth = db_query ("SELECT * FROM libpolka WHERE $limit");
-
-      $r = libcg($cid);
+        $sth = SELECT("$fields FROM libpolka $where $limit");
+        $cid .= 'b'.$u;
+      } else {
+        $sth = SELECT("$fields FROM libpolka $where $limit");
+      } 
+      if (!$genrebl) $r = libcg($cid);
       if (!$r) {
+        if ($genrebl) $r = libListBlackGenre();
         while ($a1 = db_fetch_object($sth)) {
           $u = $a1->UserId;
           $username = Sel("name FROM users WHERE uid = $u");
@@ -145,7 +156,7 @@ function librusec_block($op='list', $delta='', $edit = array()) {
           $r .= bwlist_icons($u)."<b><a href=/polka/show/$u>$username</a></b> ".
               "про <a href=/a/$a>$an</a>: <a href=/b/$a1->BookId>$book</a><br>$t<hr>\n";
         }   
-        libcs($cid, $r, polka);
+        if (!$genrebl) libcs($cid, $r, polka);
       }  
       $r .= "<a href=/polka/show/all>Все впечатления</a>";
     return array ('subject' => '<a href=/polka/show/all>Впечатления о книгах</a>', 'content' => $r, 'cache' => BLOCK_CACHE_PER_USER);
@@ -183,7 +194,7 @@ function librusec_view($node, $teaser = FALSE, $page = FALSE) {
   $node = node_prepare($node, $teaser);
   if ($nid = $node->nid) 
   if ($node->type == 'adesc') {
-    $id = db_result(db_query("SELECT AvtorId FROM libanode WHERE nid = %d", $nid));
+    $id = Sel('AvtorId FROM libanode WHERE nid = %d', $nid);
     if (!$id) {
       if ($id = 1*$node->title) {
         $tit = db_result(db_query("SELECT CONCAT_WS(' ', FirstName, MiddleName, LastName) FROM libavtorname WHERE AvtorId = %d", $id));
@@ -194,15 +205,15 @@ function librusec_view($node, $teaser = FALSE, $page = FALSE) {
     }
     if ($id and !arg(2)) drupal_goto("a/$id"); 
     if ($id && !$tit)
-      $tit = db_result(db_query("SELECT CONCAT_WS(' ', FirstName, MiddleName, LastName) FROM libavtorname WHERE AvtorId = %d", $id));
+      $tit = Sel("CONCAT_WS(' ', FirstName, MiddleName, LastName) FROM libavtorname WHERE AvtorId = %d", $id);
     if ($tit) {
       $link = "<a href=/a/$id>$tit</a>";
     }
   } elseif ($node->type == 'bdesc') {   
-    $id = db_result(db_query("SELECT BookId FROM libbnode WHERE nid = %d", $nid));
+    $id = Sel("BookId FROM libbnode WHERE nid = %d", $nid);
     if (!$id) {
       if ($id = 1*$node->title) {
-        $tit = db_result(db_query("SELECT Title FROM libbook WHERE BookId = $id"));
+        $tit = Sel("Title FROM libbook WHERE BookId = %d", $id);
         db_query("INSERT INTO libbnode (nid, BookId) VALUES (%d, %d)", $nid, $id);
         db_query("UPDATE {node} SET title = '%s' WHERE nid = %d", $tit, $nid);
         db_query("UPDATE {node_revisions} SET title = '%s' WHERE nid = %d", $tit, $nid);
@@ -368,4 +379,16 @@ function librusec_update($node) {
   $b = Sel("BookId FROM libbnode WHERE nid = %d", $node->nid);
   if (!$b) $b = $node->title*1;
   if ($b) libsettag("b$b");
+}
+
+function libListBlackGenre() {
+  Global $user;
+  if (!$user->uid) return '';
+  $sth = SELECT('* FROM libuserblackgenre JOIN libgenrelist USING(GenreId) WHERE UserId=%d ORDER BY GenreId', $user->uid);
+  while ($a1 = db_fetch_object($sth)) {
+    if (!$r) $r = 'Скрытые жанры:';
+    $r .= " <a href=/g/$a1->GenreId/show>$a1->GenreDesc</a>";
+  }
+  if ($r) $r .= "<br>";
+  return $r;
 }

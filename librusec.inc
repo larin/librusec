@@ -159,7 +159,9 @@ function pgq($query, $t) {
 }
 
 function S($st) {
-  return dbf(SELECT($st));
+  $args = func_get_args();
+  array_shift($args);
+  return db_fetch_object(db_query("SELECT $st", $args));
 }
 
 function Insert ($table, $columns, $values) { 
@@ -172,6 +174,12 @@ function Update ($table, $columns, $cond)   {
   $args = func_get_args();
   array_shift($args);array_shift($args);array_shift($args);
   return db_query("UPDATE $table SET $columns WHERE $cond", $args);
+}
+
+function Delete($st) {
+  $args = func_get_args();
+  array_shift($args);
+  return db_query("DELETE FROM $st", $args);
 }
 
 function LogAction ($sql, $desc, $undo, $BookId = 0) {
@@ -273,15 +281,15 @@ function AddSeqId ($s) {
 }
 
 function RemoveBook($b) {
-  db_query("DELETE FROM libbook WHERE BookId=$b");
-  db_query("DELETE FROM libgenre WHERE BookId=$b");
-  db_query("DELETE FROM libavtor WHERE BookId=$b");
-  db_query("DELETE FROM liblog WHERE BookId=$b");
-  db_query("DELETE FROM libreaded WHERE BookId=$b");
-  db_query("DELETE FROM libstat WHERE BookId=$b");
-  db_query("DELETE FROM libseq WHERE BookId=$b");
-  db_query("DELETE FROM libblocked WHERE BookId=$b");
-  db_query("DELETE FROM libfilename WHERE BookId=$b");
+  Delete('libbook WHERE BookId=%d', $b);
+  Delete('libgenre WHERE BookId=%d', $b);
+  Delete('libavtor WHERE BookId=%d', $b);
+  Delete('liblog WHERE BookId=%d', $b);
+  Delete('libreaded WHERE BookId=%d', $b);
+  Delete('libstat WHERE BookId=%d', $b);
+  Delete('libseq WHERE BookId=%d', $b);
+  Delete('libblocked WHERE BookId=%d', $b);
+  Delete('libfilename WHERE BookId=%d', $b);
   libsettag("b$b");
 }
 

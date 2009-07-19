@@ -306,6 +306,13 @@ function librusec_schema() {
     'primary key' => array('BookId'),
     'indexes' => array('Time' => array('Time'))
   );
+  $schema['libuserblackgenre'] = array(
+    'fields' => array(
+      'UserId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'GenreId' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+    ),
+    'primary key' => array('UserId', 'GenreId')
+  );
   return $schema;
 }
 
