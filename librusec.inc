@@ -400,7 +400,7 @@ function AvtorName($a, $t=' ', $LastFirst = 0) {
 
 function libSelectFileType($b = 0) {
   Global $user;  
-  if (!$user->uid || !variable_get('librusec_Convert', '')) return $b ? " &nbsp; (<a href=/b/$b/java>java</a>)" : '';
+  if (!$user->uid || !variable_get('librusec_Convert', '')) return $b ? " &nbsp; (<a href=/b/$b/java>Java-книга для мобильного</a>)" : '';
   $seltp = "<select id=useropt name=dtp onchange=setuseropt('D')>";
   $tp = GetUserOpt('D');
   if (!$tp) $tp = 'fb2';
@@ -648,7 +648,10 @@ function avl($a, $t=' ', $o='') {
 }
 
 function bl($b) {  
-  return "<a href=/b/$b>".Sel("Title FROM libbook WHERE BookId = $b")."</a>"; 
+  $tit = S("Title, Title1 FROM libbook WHERE BookId = $b"); 
+  $t = $tit->Title;
+  if ($tit->Title1) $t .= " [$tit->Title1]";
+  return "<a href=/b/$b>$t</a>"; 
 }
 
 function avl1($a) {  // Фамилия, имя, отчество.
@@ -1137,4 +1140,14 @@ function libGetRate($b) {
   }  
   libcs($cid, $_libgetrate, "b$b"); 
   return $r;
+}
+
+function LibListGenres($b) {
+  Global $user;
+  if (!$user->uid) return '';
+  $sht = SELECT("* FROM libgenre JOIN libgenrelist USING (GenreId) WHERE BookId = %d", $b);
+  while($a1 = dbf($sth)) {
+    $r .= "$a1->GenreDesc <a href=/g/$a1->GenreId/hide>(скрыть)</a> ";
+  } 
+  return $r ? "($r)" : '';
 }

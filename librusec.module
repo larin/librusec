@@ -133,10 +133,10 @@ function librusec_block($op='list', $delta='', $edit = array()) {
         $limit = " Text != '' AND Flag = '' ORDER BY ID DESC LIMIT ".$limit; 
       } 
       if ($mode == 'w') {
-        $sth = SELECT("$fields FROM libpolka JOIN {bwlist} ON (UserId=uid2) $where uid=%d AND bw='w' AND $limit", $u);
+        $sth = SELECT("$fields FROM libpolka JOIN {bwlist} ON (libpolka.UserId=uid2) $where uid=%d AND bw='w' AND $limit", $u);
         $cid .= 'b'.$u;
       } elseif ($mode == 'b') {
-        $bl .= bwlist_makewhere('UserId');
+        $bl .= bwlist_makewhere('libpolka.UserId');
         if ($bl) $limit = "$bl AND $limit"; 
         $sth = SELECT("$fields FROM libpolka $where $limit");
         $cid .= 'b'.$u;
@@ -386,9 +386,10 @@ function libListBlackGenre() {
   if (!$user->uid) return '';
   $sth = SELECT('* FROM libuserblackgenre JOIN libgenrelist USING(GenreId) WHERE UserId=%d ORDER BY GenreId', $user->uid);
   while ($a1 = db_fetch_object($sth)) {
-    if (!$r) $r = 'Скрытые жанры:';
-    $r .= " <a href=/g/$a1->GenreId/show>$a1->GenreDesc</a>";
+    if (!$r) $r = 'Скрытые жанры: ';
+    else $r .= " &nbsp; ";
+    $r .= "<a href=/g/$a1->GenreId/show>$a1->GenreDesc</a>";
   }
-  if ($r) $r .= "<br>";
+  if ($r) $r = "<h5>$r</h5><br>";
   return $r;
 }

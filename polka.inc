@@ -87,7 +87,6 @@ function libpline($a1, $u='', $rss=0) {
   while ($a1 = dbf($sth)) {
     if ($g) $g .= ', '; 
     $g .= "<a name=$a1->GenreCode><a href=/g/$a1->GenreCode>$a1->GenreDesc</a>";
-    if ($user->uid) $g .= "(<a href=/g/$a1->GenreId/hide>скрыть</a>)";
   }  
   if ($g) $g = " ($g)";
   return "$username <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$b\">$book</a>$g<br>$t<hr>\n";
@@ -111,9 +110,9 @@ function libPolkaShow($u) {
     } 
     $S = "FROM libpolka $where Flag = '' AND Text <> ''";
     if ($mode == 'w') {
-      $S = "FROM libpolka JOIN {bwlist} ON (UserId=uid2) $where uid='$user->uid' AND bw='w' AND Flag = '' AND Text <> ''";
+      $S = "FROM libpolka JOIN {bwlist} ON (libpolka.UserId=uid2) $where uid='$user->uid' AND bw='w' AND Flag = '' AND Text <> ''";
     } elseif ($mode == 'b') {
-      $bl .= bwlist_makewhere('UserId');
+      $bl .= bwlist_makewhere('libpolka.UserId');
       if ($bl) $S = "FROM libpolka $where $bl AND Flag = '' AND Text <> ''"; 
     } 
     $sth = pgq("SELECT $fields $S $group ORDER BY libpolka.ID DESC", Sel ("COUNT(*) $S"));
@@ -131,7 +130,7 @@ function libPolkaShow($u) {
   if (!$u) return "Пользователь $u не найден.";
 
   set_title(Sel("name FROM users WHERE uid = '$u'")." - книжная полка");
-  $sth = SELECT("* FROM libpolka WHERE UserId = $u AND Flag = '' AND Text <> '' ORDER BY ID DESC");
+  $sth = SELECT("* FROM libpolka WHERE libpolka.UserId = $u AND Flag = '' AND Text <> '' ORDER BY ID DESC");
   while ($a1 = dbf($sth)) $r .= libpline($a1);
   $r .= "<br><h3>Оцененные книги</h3>\n<table>\n";
   $sth = SELECT ("BookId, Rate FROM librate WHERE UserId = $u ORDER BY Rate DESC");
@@ -160,6 +159,13 @@ function libPolkaFriendsBooks() {
   $sth = SELECT ("SUM(1) AS s, l2.UserId AS u FROM librate AS l1 JOIN librate AS l2 
          WHERE l1.UserId = $u AND l2.UserId <> $u AND l2.BookId = l1.BookId AND ABS(l1.rate-l2.rate) < 2 
          GROUP BY 2 ORDER BY 1 DESC LIMIT 30"); // люди с похожими вкусами
+
+  if (Sel('GenreId FROM libuserblackgenre WHERE UserId=%d LIMIT 1', $u)) {
+    $BGLIST = "JOIN libgenre USING(BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $u AND libgenre.GenreId = bg.GenreId) AND";
+  } else {
+    $BGLIST = "WHERE";
+  }
+
   while ($a1 = dbf($sth)) {
     $f = $a1->u;
     $totrated = Sel("SUM(1) FROM librate AS l1 JOIN librate AS l2 
@@ -169,7 +175,7 @@ function libPolkaFriendsBooks() {
   if (!$FRIENDS) return "Друзья не обнаружены. Оцените больше книг.";
   arsort($FRIENDS); // сортируем по похожести.
   while (list($f, $v) = each($FRIENDS)) {
-    $sth = SELECT ("BookId, Rate-3 as r FROM librate WHERE UserId = $f AND Rate > 3");
+    $sth = SELECT ("BookId, Rate-3 as r FROM librate $BGLIST UserId = $f AND Rate > 3");
     while ($a1 = dbf($sth)) 
       if (!$skipbook[$b = $a1->BookId]) {
         $wst = libWST($b);
