@@ -1,3 +1,5 @@
+howto по установке Либрусека (v0.3)
+
 Либрусек разрабатывается как модуль друпала. Можно прикрутить и к другой cms, но это потребует определённых усилий.
 Должно быть не слишком сложно. Но бессмысленно.
 По объему кода представляет из себя 20% друпала 6.0 - 6000 строк 300 килобайт php.
@@ -31,9 +33,20 @@
 3. Установка бибилотеки.
 
 3.1. распаковать следующие модули:
-- код движка Либрусека в modules/librusec/ (последнюю версию брать отсюда: http://github.com/larin/librusec/tree/master)
-- код модуля bwlist в modules/bwlist/ (брать с http://lib.rus.ec/sql/bwlist.zip)
+- модуль движка Либрусека в modules/librusec/ (последнюю версию брать отсюда: http://github.com/larin/librusec/tree/master)
+- модуль bwlist в modules/bwlist/ (брать с http://lib.rus.ec/sql/bwlist.zip)
 - код конверторов и всё для них необходимое в /modules/conv/  (не обязательно, можно не делать)
+- модуль memcache (брать с http://drupal.org/project/memcache). Если его поставить не удаётся, то создать таблицу librusec для кэша:
+CREATE TABLE IF NOT EXISTS `librusec` (
+  `cid` varchar(255) NOT NULL default '',
+  `data` varchar(21000) character set utf8 collate utf8_bin default NULL,
+  `expire` int(11) NOT NULL default '0',
+  `created` int(11) NOT NULL default '0',
+  `headers` varchar(255) default NULL,
+  `serialized` smallint(6) NOT NULL default '0',
+  PRIMARY KEY  (`cid`),
+  KEY `expire` (`expire`)
+) DEFAULT CHARSET=utf8;
 
 3.2. из корня вебсервера: ln -s modules/librusec/AJAX.php (файл AJAX.php должен быть доступен по GET /AJAX.php. Тут функции, вынесенные из друпала для ускорения)
 
@@ -78,7 +91,7 @@ done
 
 Особенность качалки: во временном каталоге лежат файлы дневных обновлений. Скрипт автоматом выкачивает с либрусека те обновления, которых нет. Если какое-либо обновление выкачивать не хочется, то надо создать файл нулевого размера на его месте. При первоначальной настройке можно выполнить команду «for i in `wget -q -O - http://lib.rus.ec/all/daily/index.html |grep .zip|sed -e "s/^.*>\([0-9]\+-[0-9]\+\\.zip\)<.*$/\1/"` ; do touch $i ; done», это создаст пустые файлы вместо всех текущих обновлений.)
 
-4. Создать базу данных. Всё что можно - в utf8 (mysql dbname < tables.sql) (Сейчас файл называется librusec.sql, лежит вместе со скриптами. В нем не все таблицы прописаны, а также не все правильны, но при апдейте баз недостающее будет [пере]создано как надо.)
+4. Создать базу данных, запустив librusec.sql (файл лежит вместе со скриптами, в нем не все таблицы прописаны, а также не все правильны, но при апдейте баз недостающее будет [пере]создано как надо). (всё что можно - в utf8 (mysql dbname < tables.sql)
 Прогнать скрипт-обновление баз, запустив update.sh в папке /update/ либо см. п. 4.6
 
 Используемые таблицы:
@@ -96,7 +109,7 @@ libbook - список книг
 libavtor - классификатор книга/автор
 libtranslator - классификатор книга/переводчик
 libgenre - классификатор книга/жанр
-libseq - классификатор книга/сериал
+libseqname - классификатор книга/сериал
 libsrclang - src-lang (есть в fb2, зачем нужен пока не придумал)
 
 4.4 Создаются пустыми - заполняются при работе библиотеке
@@ -123,8 +136,8 @@ booklib - список книг буклиба, для покнижной вык
 
 cd <временный каталог>
 TABLES="lib.libavtoraliase.sql.gz lib.libavtorname.sql.gz lib.libavtor.sql.gz \
-lib.libbook.sql.gz lib.libdonations.sql.gz lib.libfilename.sql.gz lib.libgenrelist.sql.gz \
-lib.libgenre.sql.gz lib.libjoinedbooks.sql.gz lib.libpolka.sql.gz lib.libseqname.sql.gz \
+lib.libbook.sql.gz lib.libfilename.sql.gz lib.libgenrelist.sql.gz \
+lib.libgenre.sql.gz lib.libjoinedbooks.sql.gz lib.libseqname.sql.gz \
 lib.libseq.sql.gz lib.libsrclang.sql.gz lib.libtranslator.sql.gz"
 for i in $TABLES ; do
   wget -q -N http://lib.rus.ec/sql/$i && ( zcat $i | mysql -u <юзер базы> <имя базы> -p<пароль к базе> )
