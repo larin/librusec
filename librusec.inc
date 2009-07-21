@@ -16,31 +16,35 @@ class DB {
 
 
 Global $LoadAvg;
-// Относительный уровень нагрузки. до 1 - сервер свободен, 1-2 - загружен, больше 2 - сильно загружен.
+// Относительный уровень нагрузки: до 1 - сервер свободен, 1-2 - загружен, больше 2 - сильно загружен.
 function LA() {
   Global $LoadAvg;
   if ($LoadAvg > 0) return $LoadAvg;
   $fh = @fopen("/proc/loadavg", 'r');
   if(!$fh) return 1; // non-linux fix
-  $Data = fread($fh, 55);
-  fclose($fh);
-  list ($la1) = split(' ', $Data);
-  $fh = fopen("/www/la.sql", 'r');
-  $Data = fread($fh, 55);
-  fclose($fh);
-  list ($la2) = split(' ', $Data);
-  $LoadAvg = max($la1, $la2)/4;
-  return $LoadAvg; 
+  if(file_exists("/www/la.sql")) // проверка на существование файла la.sql: если нагрузка на сайт очень мала, то эта функция особо и не нужна. =)
+  {
+    $Data = fread($fh, 55);
+    fclose($fh);
+    list ($la1) = split(' ', $Data);
+    $fh = fopen("/www/la.sql", 'r');
+    $Data = fread($fh, 55);
+    fclose($fh);
+    list ($la2) = split(' ', $Data);
+    $LoadAvg = max($la1, $la2)/4;
+    return $LoadAvg;
+  }
+  else return 0.5;
 }
 
-function IsNewUser() {
+function IsNewUser() { // выдаёт, новый пользователь или давно зарегистрировался (сейчас 2 дня)
   Global $user; 
   if (!$user->uid) return 1;
   $tm = Sel("UNIX_TIMESTAMP() - created FROM users WHERE uid = $user->uid");
   return $tm < 2*24*60*60;
 }
 
-function BPP($q = 0) { // books por page
+function BPP($q = 0) { // книг на странице (см. /admin/settings/librusec)
   Global $sa;
   if ($q || $_GET['sa']) $sa = 1;
   $r = $sa ? variable_get('librusec_PPa', libPPa) : variable_get('librusec_PP', libPP);
