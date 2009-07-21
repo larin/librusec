@@ -164,10 +164,10 @@ function S($st) {
   return db_fetch_object(db_query("SELECT $st", $args));
 }
 
-function Insert ($table, $columns, $values) { 
+function Insert ($table, $columns, $values, $delayed = 'DELAYED') { 
   $args = func_get_args();
   array_shift($args);array_shift($args);array_shift($args);
-  return db_query("INSERT INTO $table ($columns) values ($values)", $args);
+  return db_query("INSERT $delayed INTO $table ($columns) values ($values)", $args);
 }
 
 function Update ($table, $columns, $cond)   { 

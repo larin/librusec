@@ -119,16 +119,16 @@ function librusec_block($op='list', $delta='', $edit = array()) {
     case 'view.polka':
       $limit = variable_get('librusec_annN', 10);
       if ($limit < 5) $limit = 10;
-      $cid = "blockpolka";
       if ($u) {
         $mode = Sel("bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $u);
-        $genrebl = Sel('GenreId FROM libuserblackgenre WHERE UserId=%d LIMIT 1', $u);
+        $gg = libListBlackGG();
       }
+      $cid = "blockpolka$gg";
       $fields = "BookId, libpolka.UserId AS UserId, Text, Time";        
-      if ($genrebl) {
+      if ($gg) {
         $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE (isnull(bg.UserId) OR bg.UserId != $u) AND";
         $limit = " Text != '' AND Flag = '' GROUP BY libpolka.BookId ORDER BY libpolka.ID DESC LIMIT ".$limit; 
-    } else {
+      } else {
         $where = "WHERE";
         $limit = " Text != '' AND Flag = '' ORDER BY ID DESC LIMIT ".$limit; 
       } 
@@ -143,9 +143,8 @@ function librusec_block($op='list', $delta='', $edit = array()) {
       } else {
         $sth = SELECT("$fields FROM libpolka $where $limit");
       } 
-      if (!$genrebl) $r = libcg($cid);
       if (!$r) {
-        if ($genrebl) $r = libListBlackGenre();
+        if ($gg) $r = "<small><small>".libListBlackGenre()."</small></small>";
         while ($a1 = db_fetch_object($sth)) {
           $u = $a1->UserId;
           $username = Sel("name FROM users WHERE uid = $u");
@@ -156,7 +155,7 @@ function librusec_block($op='list', $delta='', $edit = array()) {
           $r .= bwlist_icons($u)."<b><a href=/polka/show/$u>$username</a></b> ".
               "про <a href=/a/$a>$an</a>: <a href=/b/$a1->BookId>$book</a><br>$t<hr>\n";
         }   
-        if (!$genrebl) libcs($cid, $r, polka);
+        libcs($cid, $r, polka);
       }  
       $r .= "<a href=/polka/show/all>Все впечатления</a>";
     return array ('subject' => '<a href=/polka/show/all>Впечатления о книгах</a>', 'content' => $r, 'cache' => BLOCK_CACHE_PER_USER);
@@ -390,6 +389,12 @@ function libListBlackGenre() {
     else $r .= " &nbsp; ";
     $r .= "<a href=/g/$a1->GenreId/show>$a1->GenreDesc</a>";
   }
-  if ($r) $r = "<h5>$r</h5><br>";
+  if ($r) $r = "<h6>$r</h6><br>";
   return $r;
+}
+
+function libListBlackGG() {
+  Global $user;
+  if (!$user->uid) return ''; 
+  return Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libuserblackgenre WHERE UserId = %d", $user->uid);
 }

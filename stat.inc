@@ -61,12 +61,12 @@ function libStat($f='', $f2 = '') {
   );
   set_title($titles[$f]);
 // статистика хранится в кэше, пересчитывается раз в 17 минут, если позволит загрузка сервера.
-  if ($user->uid && Sel('GenreId FROM libuserblackgenre WHERE UserId=%d LIMIT 1', $user->uid)) {
+  if ($gg = libListBlackGG()) {
     $BGLIST = "JOIN libgenre USING(BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId)";
   }    
   if (!$admin_actions[$f] && !$admin && $f != 'my') {
     $cid = "libstat-$f-$f2-".$_GET['page'];
-    if ($BGLIST) $cid .= "g".Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libuserblackgenre WHERE UserId = %d", $user->uid);
+    if ($BGLIST) $cid .= "g$gg";
     if ($r = libcg($cid, 10000)) return $head.$r.theme('pager');
     $key = sem_get(13, 30);
     if (!sem_acquire($key)) return;
@@ -118,9 +118,13 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'b':
-      if ($BGLIST) $BGLIST .= " AND ";
-      else $BGLIST = "WHERE";
-      $q = "SELECT N, BookId FROM libbook $BGLIST NOT Deleted&1 GROUP BY 1, 2 ORDER BY 1 DESC";
+      if ($BGLIST) {
+        $BGLIST .= " AND ";
+        $GROUP = "GROUP BY 1, 2";
+      } else {
+        $BGLIST = "WHERE";
+      }
+      $q = "SELECT N, BookId FROM libbook $BGLIST NOT Deleted&1 $GROUP ORDER BY 1 DESC";
       $count = "SELECT count(*) FROM libbook $BGLIST NOT Deleted&1";
       $sth = pager_query($q, 100, 0, $count);
       while ($a1=dbf($sth)) {  

@@ -8,6 +8,7 @@ function libGenre() {
   if (!$g || $g == 'all' || $g == 'ge') { 
     drupal_set_title("Список жанров");
     Global $sa, $rd; AnnChkbox();
+    $gg = libListBlackGG();
     $CacheFile = 'cache/g/all'.($asql?'.anonim':'').".html";
     if ($fh = libOpenCacheFile($CacheFile, 24*3600)) {
       $sth = SELECT ("GenreId, GenreCode, GenreDesc, GenreMeta FROM libgenrelist ORDER BY 4,3");
@@ -24,11 +25,14 @@ function libGenre() {
             fwrite($fh, "<h3><a href=/g/$g_all/rss><img border=0 src=/misc/feed.png alt=RSS width=16 height=16></a>$meta</h3>\n<ul>\n");
         } 
         $n = Sel("Count(*) FROM libbook JOIN libgenre USING(BookId) WHERE GenreId=$g1->GenreId AND NOT (Deleted&1) $asql");
-        fwrite($fh, "<li><a href=/g/$g/rss><img border=0 src=/misc/feed.png alt=RSS width=16 height=16></a> <a name=$g><a href=/g/$g>$g1->GenreDesc</a> ($g) - $n</li>\n");
+        if ($n) {
+          fwrite($fh, "<li><a href=/g/$g/rss><img border=0 src=/misc/feed.png alt=RSS width=16 height=16></a> <a name=$g><a href=/g/$g>$g1->GenreDesc</a> ($g) - $n\n");
+          if ($user->uid) fwrite($fh, "<a href=/g/$g1->GenreId/hide>(скрыть)</a>");
+        }  
       }
       fclose($fh);
     }
-    return libReadCacheFile($CacheFile);
+    return libListBlackGenre().libReadCacheFile($CacheFile);
   } 
 
   if (arg(2) == 'rss') { 

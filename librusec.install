@@ -313,7 +313,18 @@ function librusec_schema() {
     ),
     'primary key' => array('UserId', 'GenreId')
   );
+  $schema['librusec'] = array(
+    'fields' => array(
+      'cid' => array('type' => 'varchar', 'length' => '254', 'not null' => TRUE, 'default' => ''),
+      'expire' => array('type' => 'varchar', 'length' => '21000', 'default' => NLL),
+      'created' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE),
+      'headers' => array('type' => 'varchar', 'length' => '255', 'default' => NLL),
+      'serialized' => array('type' => 'smallint', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+    ),
+    'primary key' => array('cid'), 
+    'indexes' => array('expire' => array('expire'))
+
+  );
   return $schema;
 }
-
 

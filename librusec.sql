@@ -319,3 +319,14 @@ CREATE TABLE IF NOT EXISTS `libuserblackgenre` (
 `GenreId` INT NOT NULL ,
 PRIMARY KEY ( `UserId` , `GenreId` )
 );
+
+CREATE TABLE IF NOT EXISTS `librusec` (
+  `cid` varchar(255) NOT NULL default '',
+  `data` varchar(21000) default NULL,
+  `expire` int(11) NOT NULL default '0',
+  `created` int(11) NOT NULL default '0',
+  `headers` varchar(255) default NULL,
+  `serialized` smallint(6) NOT NULL default '0',
+  PRIMARY KEY  (`cid`),
+  KEY `expire` (`expire`)
+);

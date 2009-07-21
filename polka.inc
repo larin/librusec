@@ -99,10 +99,10 @@ function libPolkaShow($u) {
     set_title("Впечатления о книгах");
     if ($user->uid) {
       $mode = Sel("bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $user->uid);
-      $genrebl = Sel('GenreId FROM libuserblackgenre WHERE UserId=%d LIMIT 1', $u);
+      $gg = libListBlackGG();
     }
     $fields = "BookId, libpolka.UserId AS UserId, Text, Time";        
-    if ($genrebl) {
+    if ($gg) {
       $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE (isnull(bg.UserId) OR bg.UserId != $user->uid) AND";
       $group = "GROUP BY BookId";
     } else {
