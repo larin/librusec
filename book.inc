@@ -330,7 +330,7 @@ function libBookEdit($b) {
       $r .= "<form action=/b/$b/addseq><input name=sern value=\"$sern\" size=1><input name=ser value=\"$serval\">
              <input $ButtonStyle type=submit value='Добавить сериал'></form>"; 
     }
-    $r .= "<b>Язык:</b> <input size=2 id=lang$b onChange=setlang($b) value='$a1->Lang'>";
+    $r .= "<b>Язык:</b> <input size=2 id=lang$b onChange=setlang($b) value='$a1->Lang'> (<a href=/langcodes>список яз. кодов</a>)";
     $r .= "<br><b>Год издания:</b> <input size=3 id=year$b onChange=setyear($b) value='$a1->Year'>";
     $r .= "<br>Аннотация ";
     $ann = ReadAnnotation($b, $nid);

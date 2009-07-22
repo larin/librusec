@@ -37,14 +37,16 @@ function LA() {
   else return 0.5;
 }
 
-function IsNewUser() { // выдаёт, новый пользователь или давно зарегистрировался (сейчас 2 дня)
+// выдаёт, новый пользователь или давно зарегистрировался (сейчас 2 дня)
+function IsNewUser() {
   Global $user; 
   if (!$user->uid) return 1;
   $tm = Sel("UNIX_TIMESTAMP() - created FROM users WHERE uid = $user->uid");
   return $tm < 2*24*60*60;
 }
 
-function BPP($q = 0) { // книг на странице (см. /admin/settings/librusec)
+// книг на странице (см. /admin/settings/librusec)
+function BPP($q = 0) {
   Global $sa;
   if ($q || $_GET['sa']) $sa = 1;
   $r = $sa ? variable_get('librusec_PPa', libPPa) : variable_get('librusec_PP', libPP);
@@ -82,9 +84,6 @@ $ShowEN = $user->uid ? 1 : variable_get('librusec_ShowEN', '');
 $ButtonStyle = "class=button";
 $debug = 0;
 
-// что это за хрень на польском? ;)
-# Z carskiej imperii
-# Podania i legendy polskie, ruskie i litewskie
 
 // функция, осуществляющая романизацию строки.
 // большая просьба отрыть где-нибудь нормальный код, учитывающий все символы.
@@ -146,7 +145,7 @@ function Sel($st) {
 }
 
 function dbf ($s) { 
-  return db_fetch_object($s); 
+  return db_fetch_object($s);
 }
 
 function pgq($query, $t) {
@@ -643,17 +642,18 @@ function avl($a, $t=' ', $o='') {
   return "<a href=/a/$a>$an</a>$cnt"; 
 }
 
-function bl($b) {  
+// выдаёт название книги (с ссылкой) на BookId
+function bl($b) {
   return "<a href=/b/$b>".Sel("Title FROM libbook WHERE BookId = $b")."</a>"; 
 }
 
-function avl1($a) {  // Фамилия, имя, отчество.
+// выдаёт фамилию, имя и отчество автора (с ссылкой)
+function avl1($a) {
   $an = AvtorName($a, ' ', 1);
   return "<a href=/a/$a>$an</a> "; 
 }
 
 //формочки разнообразные
-
 function SelectSequence($proc, $skip='', $se='') {
   return "<p>
   <form method=post action=/tools/select/sequence>
