@@ -67,20 +67,30 @@ function polkaul($u) {
   return bwlist_icons($u)."<b><a href=/polka/show/$u>".Sel("name FROM users WHERE uid = '$u'")."</a></b>";
 }
 
+// функция, отображающая один отзыв
 function libpline($a1, $u='', $rss=0) {
   if (!bwlist_see($a1->UserId)) return '';
-  Global $host;
+  Global $host,$user;
   $b = $a1->BookId;
   $book = Sel("Title FROM libbook WHERE BookId = %d", $b);
   $a = Sel("AvtorId FROM libavtor WHERE BookId = %d", $b);
   $an = Sel("LastName FROM libavtorname WHERE AvtorId = %d", $a);
   $t = stripslashes($a1->Text);
+
+  $tm1 = Sel("Time FROM libpolka WHERE UserId = %d AND BookId = %d",$a1->UserId,$b); // время добавления отзыва по UTC
+  if ($user->uid)
+  {
+    $tmzone = Sel("timezone FROM users WHERE uid = %d", $user->uid); // информация о часовом поясе пользователя, просматривающего страницу
+    $tm = date('H:i / d-m-Y',strtotime($tm1.$tmzone.' seconds')); // время добавления отзыва с учётом часового пояса юзера, просматривающего эту страницу
+  }
+  else {$tm = date('H:i / d-m-Y e',strtotime($tm1));}
+
   if ($rss) {
     $h = "http://$host";
-    $user = Sel("name FROM users WHERE uid = %d", $a1->UserId);
-    return "$user про $an: $book\n$t\n";
+    $user1 = Sel("name FROM users WHERE uid = %d", $a1->UserId);
+    return "$user1 про $an: $book\n$t\n";
   } elseif ($u) {
-    $user = polkaul($a1->UserId)." про ";
+    $user1 = polkaul($a1->UserId)." про ";
   }  
   $t = preg_replace('/\n/', '<br>', $t);
   $sth = SELECT("* FROM libgenre JOIN libgenrelist USING(GenreId) WHERE BookId = %d", $b); 
@@ -89,8 +99,9 @@ function libpline($a1, $u='', $rss=0) {
     $g .= "<a name=$a1->GenreCode><a href=/g/$a1->GenreCode>$a1->GenreDesc</a>";
   }  
   if ($g) $g = " ($g)";
-  return "$user <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$b\">$book</a>$g<br>$t<hr>\n";
-}  
+
+  return "$user1 <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$b\">$book</a>$g в $tm<br>$t<hr>\n";
+}
 
 function libPolkaShow($u) {
   Global $rates;

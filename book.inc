@@ -221,7 +221,7 @@ function AdRow($b) {
 function printallann($b) {
   Global $user; $u = $user->uid;
   $wst = libWST($b);
-  $sth = SELECT ("* FROM libpolka WHERE $wst AND UserId <> '$u' AND text <> '' AND Flag <> 'h' ORDER BY ID DESC");
+  $sth = SELECT ("* FROM libpolka WHERE $wst AND text <> '' AND Flag <> 'h' ORDER BY ID DESC"); // "* FROM libpolka WHERE $wst AND UserId <> '$u' AND text <> '' AND Flag <> 'h' ORDER BY ID DESC"
   $r = '';
   while ($a1 = dbf($sth)) $r .= libpline($a1, 1);
   $r .= "<div id='newann' class=' withright clear-block'><table width=100%><tr><td width=100%><h2>Впечатления о книге: &nbsp; ".DoLibRow($b,'rateonly')."</h2>\n";

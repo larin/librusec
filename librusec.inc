@@ -2,6 +2,7 @@
 Global $rates;
 $rates = array ('  ', 'нечитаемо', 'плохо', 'неплохо', 'хорошо', 'отлично!');
 module_load_include('inc', 'librusec', 'parser');
+date_default_timezone_set('UTC+0');
 
 class DB {
   private $dbname, $idname;
@@ -1088,6 +1089,7 @@ function MakeZipFile($b, $dtp) {
   return $zip;
 }  
 
+// делает строчку WHERE, объединяя все версии книги
 function libWST($b, $reset = 0) {
   if (!$b) return '';
   $cid = "wst".$b;
