@@ -5,6 +5,41 @@ Global $path, $PP;
 
 function libCheck() {
   switch (arg(1)) { 
+    case mysql:
+	echo "<center><b> Thread Cache Monitor </b></center>";
+	echo "<table>";
+	dbtuning_hit_ratio_monitor();
+	echo "</table>";
+	echo "<br /><center><b> Table Cache Monitor </b></center>";
+	echo "<table>";
+	dbtuning_table_stats();
+	echo "</table>";
+	echo "<br /><center><b> Query Cache Monitor </b></center>";
+	echo "<table>";
+	dbtuning_qcache_stats();
+	echo "</table>";
+	echo "<br /><center><b> Memory Monitor </b></center>";
+	echo "<table>";
+	dbtuning_memory_check();
+	echo "</table>";
+	echo "<br /><center><b> Select Monitor </b></center>";
+	echo "<table>";
+	dbtuning_everything_else($mysql_version);
+	echo "</table>";
+	exit;
+/*
+Make all the links dynamically generated.
+Pull version number from mysql - then put 4.1 or 5.0 in the URL
+<a href="http://dev.mysql.com/doc/refman/5.0/en/innodb-tuning.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/innodb-tuning.html</a>
+-Making the buffer pool bigger can help, but do not set it equal to more than 80% of physical memory.
+-Make your log files big, even as big as the buffer pool.
+-Make the log buffer quite large as well (on the order of 8MB).
+<a href="http://dev.mysql.com/doc/refman/5.0/en/mysql-benchmarks.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/mysql-benchmarks.html</a>
+<a href="http://dev.mysql.com/doc/refman/5.0/en/compile-and-link-options.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/compile-and-link-options.html</a>
+<a href="http://dev.mysql.com/doc/refman/5.0/en/explain.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/explain.html</a>
+<a href="http://dev.mysql.com/doc/refman/5.0/en/slow-query-log.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/slow-query-log.html</a>
+*/
+exit;    
     case createtorrent:
       print createtorrent;
       $b = (int)arg(2);
@@ -421,4 +456,226 @@ function CreateTorrent($b) {
   $torent = 'librusec.'.$b.'.torrent';
   rename($dir.$torent, 'torrents/'.$torent);
   print "  rename($dir$torent, 'torrents/'.$torent);";
+}
+
+function dbtuning_get_mysql_version() {
+/*
+Grab the Mysql Version for use in forming the help page URLs
+*/
+$version_object = db_fetch_object( db_query('SHOW VARIABLES LIKE "version"'));
+  if (substr($version_object->Value, 0, 3) == 4.1) {
+    $mysql_version = substr($version_object->Value, 0, 3);
+  }
+    elseif (substr($version_object->Value, 0, 1) == 4) {
+      $mysql_version = substr($version_object->Value, 0, 1);
+    }
+      elseif (substr($version_object->Value, 0, 1) == 5) {
+        $mysql_version = substr($version_object->Value, 0, 1);
+      }
+  return $mysql_version;
+}
+function dbtuning_hit_ratio_monitor() {
+  echo "<tr><td><b>" . t('Threads Created') . "</b></td><td><b>" . t('Connections') . "</b></td><td><b>" . t('Thread Cache Size') . "</b></td><td><b>" . t('Hit Ratio') . "</b></td><td><b>" . t('Warnings') . "</b></td></tr>";
+  $threads_created = db_fetch_object( db_query('SHOW STATUS LIKE "Threads_created"'));
+  $thread_cache_size = db_fetch_object( db_query('SHOW VARIABLES LIKE "thread_cache_size"'));
+  $mysql_connections = db_fetch_object( db_query('SHOW STATUS LIKE "Connections"'));
+  $hit_ratio = (((int) $threads_created->Value / (int) $mysql_connections->Value));
+  if ($hit_ratio < 0.90 || $hit_ratio > 1.10) {
+    $error_value = t('The ideal situation is to get Threads Created as close as possible to Thread Cache Size. So no new connections are having to wait for new thread allocation. Stay as close to a 99% hit ratio as you can as this will reduce bottlenecks in your caching. Adjust your Thread Cache Size until this is achieved. You can set your Thread Cache Size on the fly by doing "SET GLOBAL thread_cache_size=N". Where N is the desired size of your Thread Cache. For additional information on the SET command please read <a href="/%url">SET Syntax</a>', array('%url' => url('http://dev.mysql.com/doc/refman/5.1/en/set-option.html', NULL, NULL, TRUE)));
+  }
+    else {
+      $error_value = "";
+    }
+  echo "<tr><td>" . $threads_created->Value . "</td><td>" . $mysql_connections->Value . "</td><td>" . $thread_cache_size->Value . "</td><td>" . (round($hit_ratio, 3) * 100) . "%</td><td>" . $error_value . "</td></tr>";
+}
+function dbtuning_calc_uptime_stats($stats_to_calc) {
+  $uptime = db_fetch_object( db_query('SHOW STATUS LIKE "Uptime"'));
+    $stat_hour = ($stats_to_calc->Value / ($uptime->Value / 3600));
+    $stat_day = ($stats_to_calc->Value / ($uptime->Value / 86400));
+    $stat_year = ($stats_to_calc->Value / ($uptime->Value / 31536000));
+    echo "<tr><td>" . $stats_to_calc->Variable_name . "</td><td>" . $stat_hour . "</td><td>" . $stat_day . "</td><td>" . $stat_year . "</td><td>" . $stats_to_calc->Value . "</td></tr>\n";
+}
+function dbtuning_uptime_stats() {
+  echo "<tr><td><b>" . t('Database Action') . "</b></td><td><b>" . t('Per-Hour') . "</b></td><td><b>" . t('Per-Day') . "</b></td><td><b>" . t('Per-Year') . "</b></td><td><b>" . t('Total') . "</b></td></tr>";
+  $results_load_stats = db_query('SHOW STATUS LIKE "Handler%"');
+    while ($stats = db_fetch_object($results_load_stats)) {
+      switch ($stats) {
+        case ($stats->Variable_name == 'Handler_write'):
+          $stats->Variable_name = t("Writes to DB");
+          dbtuning_calc_uptime_stats($stats);
+          break;
+        case ($stats->Variable_name == 'Handler_update'):
+          $stats->Variable_name = t("Updates to DB");
+          dbtuning_calc_uptime_stats($stats);
+          break;
+        case ($stats->Variable_name == 'Handler_delete'):
+          $stats->Variable_name = t("Deletes from DB");
+          dbtuning_calc_uptime_stats($stats);
+          break;
+        default:
+          break;
+    }
+  }
+}
+function dbtuning_table_stats() {
+  echo "<tr><td><b>" . t('Table Cache') . "</b></td><td><b>" . t('Open Tables') . "</b></td><td><b>" . t('Opened Tables') . "</b></td><td><b>" . t('Warnings') . "</b></td></tr>";
+  $open_tables = db_fetch_object( db_query('SHOW STATUS LIKE "Open_tables"'));
+  $opened_tables = db_fetch_object( db_query('SHOW STATUS LIKE "Opened_tables"'));
+  $uptime = db_fetch_object( db_query('SHOW STATUS LIKE "Uptime"'));
+  $table_cache = db_fetch_object( db_query('SHOW VARIABLES LIKE "table_cache"'));
+  switch ($table_cache) {
+    case ($uptime < 1000000):
+      $error_msg = t("Your MySQL server has not been running long enough to make a quality assessment of the performance of your table cache. Put some traffic on there and come back soon!");
+      echo "<tr><td>" . $table_cache->Value . "</td><td>" . $open_tables->Value . "</td><td>" . $opened_tables->Value . "</td><td>" . $error_msg . "</td><td>Uptime: " . $uptime->Value . "</td></tr>";
+      break;
+    case ($table_cache->Value == $open_tables->Value && $opened_tables->Value > 1000):
+      $error_msg = t("Your table cache is currently full. This can severely impact the performance of your MySQL server. If you have the memory, it may be time to increase your table cache. However, if your table cache is set too high, MySQL may start dropping connections. You can read about how MySQL uses the table cache <a href='%url'>here</a>. Increase your thread cache by issuing a 'SET thread_cache_size=N' command. Where N is the desired size of your Thread Cache. More Information on the SET command can be found <a href='%set'>here</a>.", array('%set' => url('http://dev.mysql.com/doc/refman/5.0/en/set-option.html', NULL, NULL, TRUE)), array('%url' => url('http://dev.mysql.com/doc/refman/5.0/en/table-cache.html', NULL, NULL, TRUE))) ;
+      echo "<tr><td>" . $table_cache->Value . "</td><td>" . $open_tables->Value . "</td><td>" . $opened_tables->Value . "</td><td>" . $error_msg . "</td></tr>";
+      break;
+    case ($table_cache->Value == $open_tables->Value && $opened_tables->Value < 1000):
+      $error_msg = t("Your table cache is currently full. Normally this can be bad as it forces MySQL to goto the DB for queries. However, due to the low number of opened_tables, it may provide little benefit to increase your table cache");
+      echo "<tr><td>" . $table_cache->Value . "</td><td>" . $open_tables->Value . "</td><td>" . $opened_tables->Value . "</td><td>" . $error_msg . "</td></tr>";
+      break;
+    case (($table_cache->Value - $open_tables->Value) > 10):
+      $error_msg = t("If MySQL is using a significant amount of resources your system. You may want to free up memory by lowering your Table Cache. You can read about how MySQL uses the table cache <a href='%url'>here</a>. Adjust your thread cache by issuing a 'SET GLOBAL thread_cache_size=N' command. Where N is the desired size of your Thread Cache. More Information on the SET command can be found <a href='%set'>here</a>.", array('%set' => url('http://dev.mysql.com/doc/refman/5.0/en/set-option.html', NULL, NULL, TRUE)), array('%url' => url('http://dev.mysql.com/doc/refman/5.0/en/table-cache.html', NULL, NULL, TRUE))) ;
+      echo "<tr><td>" . $table_cache->Value . "</td><td>" . $open_tables->Value . "</td><td>" . $opened_tables->Value . "</td><td>" . $error_msg . "</td></tr>";
+      break;
+    default:
+      $error_msg = "";
+      echo "<tr><td>" . $table_cache->Value . "</td><td>" . $open_tables->Value . "</td><td>" . $opened_tables->Value . "</td><td>" . $error_msg . "</td></tr>";
+      break;
+  }
+}
+function dbtuning_qcache_stats_calc($qcache_vars) {
+if ($qcache_vars['ratio'] != 0) {
+  if (round($qcache_vars['ratio'], 2) > .10) {
+    $qcache_errs['ratio'] = t('Your query cache is not maintaining a healthy hit ratio of 1 / 10 - Inserts / Hits. This can mean that your mySQL instance has become hard drive bound. This statistic can be improved by using your mySQL thread, table, and query cache effectively. You can also improve this from a code standpoint. Maintain a level of consistency in your code. Whether or not a query will be placed in the cache is case sensitive, as mySQL checks for a byte identical match.');
+      }
+  }
+    else {
+      $qcache_errs['ratio'] = "Your Query Cache is disabled.";
+    }
+  if ($qcache_vars['litmus']->Value == 'NO') {
+    $qcache_errs['litmus'] = t("Your Query Cache has been disabled. The Query Cache is useful for when you regularly serve the same exact page. Please recompile MySQL without the --without-query-cache configuration option. See <a href='%url'>here</a> for more information on compiling MySQL.", array('%url' => url('http://dev.mysql.com/doc/refman/5.0/en/installing-source.html', NULL, NULL, TRUE)));
+  }
+  if ($qcache_vars['size']->Value == 0) {
+    $qcache_errs['size'] = t("Your query_cache_size is set to 0. This effectively disables your Query Cache. To correct this use the command '<i>SET GLOBAL query_cache_size=N</i>' where N is equal to the desired size of your Query Cache. More Information on the SET command can be found <a href='%set'>here</a> and more information on configuring your Query Cache can be found <a href='%qcache'>here</a>", array('%set' => url('http://dev.mysql.com/doc/refman/5.0/en/set-option.html', NULL, NULL, TRUE)), array('%qcache' => url('http://dev.mysql.com/doc/refman/5.0/en/query-cache-configuration.html', NULL, NULL, TRUE)));
+  }
+  if ($qcache_vars['type']->Value == 'OFF') {
+    $qcache_errs['type'] = t("Your query_cache_type is set to 0. This effectively disables your Query Cache. The Query Cache is useful for when you regularly serve the same exact page. To correct this use the command 'SET GLOBAL query_cache_type=N' where N is equal to OFF,ON, or DEMAND. More Information on the SET command can be found <a href='%set'>here</a> and more information on configuring your Query Cache can be found <a href='%qcache'>here</a>", array('%set' => url('http://dev.mysql.com/doc/refman/5.0/en/set-option.html', NULL, NULL, TRUE)), array('%qcache' => url('http://dev.mysql.com/doc/refman/5.0/en/query-cache-configuration.html', NULL, NULL, TRUE)));
+  }
+  if ($qcache_vars['free_blocks']->Value > 100) {
+    $qcache_errs['free_blocks'] = t('If your Query Cache has a lot of free blocks in it. This can indicate fragmentation in your Query Cache. This can decrease performance and generally just be a waste of resoures. Fix this problem by issuing a \'FLUSH QUERY CACHE\' command. Read more about query cache maintenance <a href="/%url">here</a>.', array('%url' => url('http://dev.mysql.com/doc/refman/5.0/en/query-cache-status-and-maintenance.html', NULL, NULL, TRUE)));
+  }
+return $qcache_errs;
+}
+function dbtuning_qcache_gather_vars() {
+  $qcache_vars = array (
+  "uptime" => db_fetch_object( db_query('SHOW STATUS LIKE "Uptime"')),
+  "hits" => db_fetch_object( db_query('SHOW STATUS LIKE "qcache_hits"')),
+  "inserts" => db_fetch_object( db_query('SHOW STATUS LIKE "qcache_inserts"')),
+  "litmus" => db_fetch_object( db_query('SHOW VARIABLES LIKE "have_query_cache"')),
+  "size" => db_fetch_object( db_query('SHOW VARIABLES LIKE "query_cache_size"')),
+  "type" => db_fetch_object( db_query('SHOW VARIABLES LIKE "query_cache_type"')),
+  "free_memory" => db_fetch_object( db_query('SHOW STATUS LIKE "qcache_free_memory"')),
+  "free_blocks" => db_fetch_object( db_query('SHOW STATUS LIKE "qcache_free_blocks"')),
+  "lowmem_prunes" => db_fetch_object( db_query('SHOW STATUS LIKE "qcache_lowmem_prunes"')),
+  "limit" => db_fetch_object( db_query('SHOW VARIABLES LIKE "query_cache_limit"')),
+  "not_cached" => db_fetch_object (db_query('SHOW STATUS LIKE "qcache_not_cached"')));
+    if ($qcache_vars['inserts']->Value == 0 || $qcache_vars['hits']->Value == 0) {
+      $qcache_vars['ratio'] = 0;
+    }
+      else {
+        $qcache_vars['ratio'] = round(($qcache_vars['inserts']->Value / $qcache_vars['hits']->Value), 2);
+      }
+  return $qcache_vars;
+}
+function dbtuning_qcache_stats() {
+  $qcache_vars = dbtuning_qcache_gather_vars();
+  $qcache_errs = dbtuning_qcache_stats_calc($qcache_vars);
+  echo "<tr><td><b>" . t('Query Cache Ratio') . "</b></td><td>" . $qcache_vars['ratio'] . "</td><td>" . $qcache_errs['ratio'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Inserts') . "</b></td><td>" . $qcache_vars['inserts']->Value . "</td><td>" . $qcache_errs['inserts'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Hits') . "</b></td><td>" . $qcache_vars['hits']->Value . "</td><td>" . $qcache_errs['hits'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Available?') . "</b></td><td>" . $qcache_vars['litmus']->Value . "</td><td>" . $qcache_errs['litmus'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Size') . "</b></td><td>" . $qcache_vars['size']->Value . "</td><td>" . $qcache_errs['size'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Type') . "</b></td><td>" . $qcache_vars['type']->Value . "</td><td>" . $qcache_errs['type'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Free Memory') . "</b></td><td>" . $qcache_vars['free_memory']->Value . "</td><td>" . $qcache_errs['free_memory'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Free Blocks') . "</b></td><td>" . $qcache_vars['free_blocks']->Value . "</td><td>" . $qcache_errs['free_blocks'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Prunes') . "</b></td><td>" . $qcache_vars['lowmem_prunes']->Value . "</td><td>" . $qcache_errs['lowmem_prunes'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Query Cache Limit') . "</b></td><td>" . $qcache_vars['limit']->Value . "</td><td>" . $qcache_errs['limit'] . "</td></tr>";
+  echo "<tr><td><b>" . t('Queries Not Cached') . "</b></td><td>" . $qcache_vars['not_cached']->Value . "</td><td>" . $qcache_errs['not_cached'] . "</td></tr>";
+}
+function dbtuning_everything_else() {
+  $mysql_version = dbtuning_get_mysql_version();
+  $results = db_query('SHOW STATUS');
+  echo "<tr><td><b>" . t('Variable Name') . "</b></td><td><b>" . t('Current Value') . "</b></td><td><b>" . t('Warnings') . "</b></td></tr>";
+  while ($node = db_fetch_object($results)) {
+    switch ($node) {
+      case ($node->Value > 0 && $node->Variable_name == 'Slow_queries'):
+        $value_error = t("You Have queries which are executing slower than normal. Enable the <a href='%url2'>Slow Query Log</a> and use <a href='%url'>Explain</a> to examine your queries.", array('%url' => url('http://dev.mysql.com/doc/refman/en/slow-query-log.html', NULL, NULL, TRUE)), array('%url2' => url('http://dev.mysql.com/doc/refman/en/explain.html', NULL, NULL, TRUE)));
+        echo "<tr><td>" . $node->Variable_name . "</td><td>" . $node->Value . "</td><td>" . $value_error . "</td></tr>\n";
+        break;
+      case ($node->Variable_name == 'Select_scan'):
+        $value_error = t("A high value here can be an indication of bottlenecks in your server optimization. This happens because Mysql is not using the indexes for the tables and so is having to do extra work for inefficient queries. Enable the <a href='%url'>Slow Query Log</a> and use <a href='%url2'>Explain</a> to examine your queries.", array('%url' => url('http://dev.mysql.com/doc/refman/en/slow-query-log.html', NULL, NULL, TRUE)), array('%url2' => url('http://dev.mysql.com/doc/refman/en/explain.html', NULL, NULL, TRUE)));
+        echo "<tr><td>" . $node->Variable_name . "</td><td>" . $node->Value . "</td><td>" . $value_error . "</td></tr>\n";
+        break;
+      case ($node->Variable_name == 'Select_full_join'):
+        $value_error = t("A high value here means that MySQL is not using indexes and is therefore taking longer to build a result set. The problem can be fixed by indexing important fields of the join.Enable the <a href='%url'>Slow Query Log</a> and use <a href='%url2'>Explain</a> to examine your queries.", array('%url' => url('http://dev.mysql.com/doc/refman/en/slow-query-log.html', NULL, NULL, TRUE)), array('%url2' => url('http://dev.mysql.com/doc/refman/en/explain.html', NULL, NULL, TRUE)));
+        echo "<tr><td>" . $node->Variable_name . "</td><td>" . $node->Value . "</td><td>" . $value_error . "</td></tr>\n";
+        break;
+      default:
+        break;
+    }
+  }
+}
+function dbtuning_memory_check() {
+/*
+key_buffer + innodb_buffer_pool + innodb_log_buffer + innodb_additional_mem_pool + net_buffer + max_connections *
+(read_buffer + join_buffer + sort_buffer + myisam_sort_buffer + thread_stack + tmp_table_size + read_rnd_buffer)
+*/
+  $memory_vars = array (
+  "innodb_buffer_pool" => db_fetch_object( db_query('SHOW VARIABLES LIKE "innodb_buffer_pool_size"')),
+  "innodb_additional_mem_pool" => db_fetch_object( db_query('SHOW VARIABLES LIKE "innodb_additional_mem_pool_size"')),
+  "innodb_log_buffer" => db_fetch_object( db_query('SHOW VARIABLES LIKE "innodb_log_buffer_size"')),
+  "thread_stack" => db_fetch_object( db_query('SHOW VARIABLES LIKE "thread_stack"')),
+  "tmp_table_size" => db_fetch_object( db_query('SHOW VARIABLES LIKE "tmp_table_size"')),
+  "key_buffer" => db_fetch_object( db_query('SHOW VARIABLES LIKE "key_buffer_size"')),
+  "net_buffer" => db_fetch_object( db_query('SHOW VARIABLES LIKE "net_buffer_length"')),
+  "max_connections" => db_fetch_object( db_query('SHOW VARIABLES LIKE "max_connections"')),
+  "sort_buffer" => db_fetch_object( db_query('SHOW VARIABLES LIKE "sort_buffer_size"')),
+  "myisam_sort_buffer" => db_fetch_object( db_query('SHOW VARIABLES LIKE "myisam_sort_buffer_size"')),
+  "read_buffer" => db_fetch_object( db_query('SHOW VARIABLES LIKE "read_buffer_size"')),
+  "join_buffer" => db_fetch_object( db_query('SHOW VARIABLES LIKE "join_buffer_size"')),
+  "read_rnd_buffer" => db_fetch_object( db_query('SHOW VARIABLES LIKE "read_rnd_buffer_size"')));
+  $global_buffer = ((floatval($memory_vars['read_buffer']->Value) + floatval($memory_vars['join_buffer']->Value) + floatval($memory_vars['sort_buffer']->Value) + floatval($memory_vars['myisam_sort_buffer']->Value) + floatval($memory_vars['thread_stack']->Value) + floatval($memory_vars['tmp_table_size']->Value) + floatval($memory_vars['read_rnd_buffer']->Value)));
+  $per_thread_mem = ((floatval($memory_vars['key_buffer']->Value) + floatval($memory_vars['innodb_buffer_pool']->Value) + floatval($memory_vars['innodb_log_buffer']->Value) + floatval($memory_vars['innodb_additional_mem_pool']->Value) + floatval($memory_vars['net_buffer']->Value)));
+  /*
+  $multiply_me = ((($memory_vars['read_buffer']->Value + $memory_vars['join_buffer']->Value + $memory_vars['sort_buffer']->Value + $memory_vars['myisam_sort_buffer']->Value + $memory_vars['thread_stack']->Value + $memory_vars['tmp_table_size']->Value + $memory_vars['read_rnd_buffer']->Value) / 1024.0) / 1024.0);
+  $first_part = ((($memory_vars['key_buffer']->Value + $memory_vars['innodb_buffer_pool']->Value + $memory_vars['innodb_log_buffer']->Value + $memory_vars['innodb_additional_mem_pool']->Value + $memory_vars['net_buffer']->Value + $memory_vars['max_connections']->Value) / 1024.0) / 1024.0);
+  */
+//  $min_memory_needed = ($memory_vars['max_connections']->Value * $per_thread_mem) + $global_buffer;
+$thread_usage = $memory_vars['max_connections']->Value * $per_thread_mem;
+$min_memory_needed = $thread_usage + $global_buffer;
+
+/*
+  "global_buffers" => (int) ($key_buffer->Value + $net_buffer->Value),
+  "thread_buffers" => (int) ($read_rnd_buffer_size->Value + $sort_buffer->Value + $myisam_sort_buffer->Value + $read_buffer->Value + $join_buffer->Value),
+  "min_memory_needed" => (int) ($global_buffers + ($thread_buffers * $max_connections->Value)));
+*/
+  echo "<tr><td><center<b>" . t('Minimum Memory Needed : ') . $min_memory_needed . "</b></center></td></tr>";
+  echo "<tr><td>" . t('This number is a calculation of the maximum amount of memory your mySQL instance will consume on your server . It is a sum of all the caches and buffers that would benefit by not using swap or not having to goto the HD. Having a number larger than your total available amount of memory will result in swapping.') . "</td><tr>";
+  echo "<tr><td><center>" . t('Min_memory_needed = key_buffer + innodb_buffer_pool + innodb_log_buffer + innodb_additional_mem_pool + net_buffer + max_connections * (read_buffer + join_buffer + sort_buffer + myisam_sort_buffer + thread_stack + tmp_table_size + read_rnd_buffer)') . "</center></td></tr>";
+  echo "<tr><td><center<b>" . t('Key Buffer : ') . $memory_vars['key_buffer']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('InnoDB Buffer Pool : ') . $memory_vars['innodb_buffer_pool']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('InnoDB Log Buffer : ') . $memory_vars['innodb_log_buffer']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('InnoDB Additional Memory Pool : ') . $memory_vars['innodb_additional_mem_pool']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Net Buffer : ') . $memory_vars['net_buffer']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Max Connections : ') . $memory_vars['max_connections']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Read Buffer : ') . $memory_vars['read_buffer']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Join Buffer : ') . $memory_vars['join_buffer']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Sort Buffer : ') . $memory_vars['sort_buffer']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Myisam Sort Buffer : ') . $memory_vars['myisam_sort_buffer']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Thread Stack : ') . $memory_vars['thread_stack']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Tmp Table Size : ') . $memory_vars['tmp_table_size']->Value . "</b></center></td></tr>";
+  echo "<tr><td><center<b>" . t('Read Rnd Buffer Size : ') . $memory_vars['read_rnd_buffer']->Value . "</b></center></td></tr>";
 }

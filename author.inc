@@ -39,7 +39,10 @@ function libAvtor() {
     }
   }  
   if (arg(2) == 'rss') return libAvtorRSS($a);
+
   set_title($aname=AvtorName($a));
+  drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="Новости автора '.$aname.' на Либрусеке RSS" href="/a/'.$a.'/rss" />');  
+  
   $a1 = S("* FROM libavtorname WHERE AvtorId = $a");
   $a1->av = $av;
   $a1->aname = $aname;

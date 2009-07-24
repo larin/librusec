@@ -47,7 +47,7 @@ function libNew() {
   $r .= AnnChkbox().'</form>';
   $pg = $_GET['page'];
   if ($gg = libListBlackGG()) {
-    $BGLIST = "JOIN libgenre USING(BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId) AND";
+    $BGLIST = "JOIN libgenre ON(libgenre.BookId = libbook.BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId) AND";
     $GROUPBY = "GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9";
   } else {
     $BGLIST = 'WHERE';

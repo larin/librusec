@@ -29,7 +29,7 @@ function LA() {
   $Data = fread($fh, 55);
   fclose($fh);
   list ($la2) = split(' ', $Data);
-  $LoadAvg = max($la1, $la2)/4;
+  $LoadAvg = max($la1, $la2)/3;
   return $LoadAvg; 
 }
 
@@ -164,10 +164,10 @@ function S($st) {
   return db_fetch_object(db_query("SELECT $st", $args));
 }
 
-function Insert ($table, $columns, $values, $delayed = 'DELAYED') { 
+function Insert ($table, $columns, $values) { 
   $args = func_get_args();
   array_shift($args);array_shift($args);array_shift($args);
-  return db_query("INSERT $delayed INTO $table ($columns) values ($values)", $args);
+  return db_query("INSERT DELAYED INTO $table ($columns) values ($values)", $args);
 }
 
 function Update ($table, $columns, $cond)   { 

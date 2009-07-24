@@ -114,7 +114,7 @@ function libMass() {
          }  
          if (preg_match('/\((.+)\s*-\s*(\d+)\)/', Sel("Title FROM libbook WHERE BookId = $b"), $m)) {
            if (!$seqname) $seqname = trim($m[1]);
-         } else $m[2] = Sel("SeqNumb FROM libbook WHERE BookId = $b");  
+         } else $m[2] = Sel("SeqNumb FROM libseq WHERE BookId = $b");  
          $bks .= "<input size=1 name=$b value='$m[2]'> ".bl($b)."<br>";
        }
        $iii++;
