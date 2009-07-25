@@ -400,11 +400,11 @@ function AvtorName($a, $t=' ', $LastFirst = 0) {
 
 function libSelectFileType($b = 0) {
   Global $user;  
-  if (!$user->uid || !variable_get('librusec_Convert', '')) return $b ? " &nbsp; (<a href=/b/$b/java>Java-книга для мобильного</a>)" : '';
+  if (!$user->uid || !variable_get('librusec_Convert', '')) return '';
   $seltp = "<select id=useropt name=dtp onchange=setuseropt('D')>";
   $tp = GetUserOpt('D');
   if (!$tp) $tp = 'fb2';
-  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub', 'java') as $fmt)  
+  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub', 'lrf') as $fmt)  
     $seltp .= '<option '.($fmt==$tp?' selected':'').">$fmt";
   $seltp .= '</select>';
   return $seltp;
@@ -445,7 +445,7 @@ function DoLibRow($b, $style='') {
   if (!$a1 || !$ShowEN && $a1->Lang != 'ru') return ''; 
   $edit = strstr($style,'edit') && !variable_get('librusec_Mirror', '0');
   
-  if ($style != 'rateonly' && (!$user->uid || !strstr($style,'seltype'))) {
+  if ($style != 'rateonly' && !libListBlackGG() && (!$user->uid || !strstr($style,'seltype'))) {
     $cid = 'LibRow'.md5($b.$style.$sa).$ShowEN;
     if ($r = libcg($cid)) 
       apc_inc('Dolibrow Hits');

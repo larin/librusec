@@ -81,7 +81,7 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
     case 'pdf':
     case 'pdb':
     case 'epub':
-    case 'java':
+    case 'lrf':
       return libDownloadBook($b, arg(2));
   } 
 
@@ -194,6 +194,7 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
     "l2.BookId AS B, count(l2.BookId) as N 
      FROM libreaded as l1 join libreaded as l2 
      WHERE l1.BookId = $b AND l2.BookId <> $b AND l1.UserId = l2.UserId 
+     AND NOW()-l1.Time < 400000000 AND NOW()-l2.Time < 400000000
      GROUP BY l2.bookid order by N desc limit 17");
     while ($a1 = dbf($sth)) {
       if ($ad) $ad .= ',';
@@ -247,7 +248,7 @@ function libDownloadBook($b, $dtp = 'fb2') {
   libSaveLog($b, $u);
   if ($a1->FileType == 'fb2') {
     if ($dtp == 'pdf') drupal_goto("http://www.fb2pdf.com/convert.php?auto=yes&url=http://lib.rus.ec/b/$b/fb2");
-    if ($dtp == 'java') drupal_goto("http://books.1gb.ru/smsrequest?bookId=$b");
+    if ($dtp == 'lrf') drupal_goto("http://onlinelrf.com/Convert.aspx?url=http://lib.rus.ec/b/$b/fb2");
     $zip = MakeZipFile($b, $dtp);
     if ($zip) return drupal_goto($zip);
     else return "Не получилось изготовить файл";
