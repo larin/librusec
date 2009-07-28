@@ -77,13 +77,14 @@ function libpline($a1, $u='', $rss=0) {
   $an = Sel("LastName FROM libavtorname WHERE AvtorId = %d", $a);
   $t = stripslashes($a1->Text);
 
-  $tm1 = Sel("Time FROM libpolka WHERE UserId = %d AND BookId = %d",$a1->UserId,$b); // время добавления отзыва по UTC
+  $tm_stamp = Sel("Time FROM libpolka WHERE UserId = %d AND BookId = %d",$a1->UserId,$b); // время добавления отзыва по UTC
   if ($user->uid)
   {
-    $tmzone = Sel("timezone FROM users WHERE uid = %d", $user->uid); // информация о часовом поясе пользователя, просматривающего страницу
-    $tm = date('H:i / d-m-Y',strtotime($tm1.$tmzone.' seconds')); // время добавления отзыва с учётом часового пояса юзера, просматривающего эту страницу
+    $tmz_user = Sel("timezone FROM users WHERE uid = %d", $user->uid); // информация о часовом поясе пользователя, просматривающего страницу
+    $tmz_loc = date(Z); // смещение часового пояса сервера в секундах
+    $tm = date('H:i / d-m-Y',strtotime($tm_stamp.'-'.$tmz_loc.' seconds '.$tmz_user.' seconds')); // время добавления отзыва вычитаем локальное смещение сервера и добавляем смещение юзера, просматривающего эту страницу
   }
-  else {$tm = date('H:i / d-m-Y e',strtotime($tm1));}
+  else {$tm = date('H:i (P) / d-m-Y',strtotime($tm_stamp));}
 
   if ($rss) {
     $h = "http://$host";

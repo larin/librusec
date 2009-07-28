@@ -2,7 +2,6 @@
 Global $rates;
 $rates = array ('  ', 'нечитаемо', 'плохо', 'неплохо', 'хорошо', 'отлично!');
 module_load_include('inc', 'librusec', 'parser');
-date_default_timezone_set('UTC+0');
 
 class DB {
   private $dbname, $idname;

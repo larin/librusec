@@ -292,9 +292,7 @@ function libStat($f='', $f2 = '') {
           $d =  "Добавил$A книгу ".($bi?bl($bi):' - безуспешно');
         }
         $SQL = preg_replace('/[\'\"]/', '', $a1->ActionSQL);
-	$tmzone = Sel("timezone FROM users WHERE uid = %d", $user->uid);
-        $tm1 =  preg_replace('/ /', '&nbsp;', $a1->Time);
-	$tm = date('Y-m-d H:i:s',strtotime($tm1.$tmzone.' seconds'));
+        $tm = preg_replace('/ /', '&nbsp;', $a1->Time);
         $r .= "<td>$tm<td>$d<td><a href=\"javascript:alert('$SQL')\">SQL</a>";
       }
       $r .= "</table>";
