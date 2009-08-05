@@ -5,6 +5,27 @@ Global $path, $PP;
 
 function libCheck() {
   switch (arg(1)) { 
+    case massfail:
+      $fh = fopen('massfail', 'r');
+      while ($s = fgets($fh)) {
+        preg_match('/b.tmp.(\d+).zip/', $s, $m);
+        $IDS[$m[1]]++;
+      }
+      print "<pre>";
+      foreach ($IDS as $k => $v) {
+        if ($v > 10) {
+          $filename = "b.tmp/$k.zip";
+          $bb = explode('.', Sel("Books FROM libmass WHERE ID = %d", $k));
+          $filelist = '';
+          for ($i = 1; $b = $bb[$i]; $i++) {
+             $zip = MakeZipFile($b, $bb[0]);
+             print "$zip = MakeZipFile($b, $bb[0]);\n";
+             if (file_exists($zip)) $filelist .= " \"$zip\"";
+          }
+          print system("zip -j -0 $filename $filelist\n"); 
+        }
+      }
+      exit;
     case mysql:
 	echo "<center><b> Thread Cache Monitor </b></center>";
 	echo "<table>";

@@ -13,7 +13,7 @@ include_once drupal_get_path('module', 'librusec').'/librusec.inc';
 // дефалты
 define('libPP', 50);  //книг на экран, без аннотаций
 define('libPPa', 25);  //книг на экран, с аннотациями
-define('NetPrav', 'У вас нет доступа к этому месту. Извините. <p>Некоторые возможности доступны только заренистрированным несколько дней назад пользователям. Попробуйте зарегистрироваться и зайти через недельку.', 1);
+define('NetPrav', 'У вас нет доступа к этому месту. Извините. <p>Некоторые возможности доступны только зарегистрированным несколько дней назад пользователям. Попробуйте зарегистрироваться и зайти через недельку.', 1);
 //друпальные хуки
 function librusec_init() {
   Global $user;
@@ -117,6 +117,10 @@ function librusec_block($op='list', $delta='', $edit = array()) {
 
   switch ("$op.$delta") {
     case 'view.polka':
+      if (!$maxid = libcg("maxpolkaid")) {
+        $maxid = Sel("MAX(Id) FROM libpolka") - 1000;
+        libcs("maxpolkaid", $maxid);
+      }
       $limit = variable_get('librusec_annN', 10);
       if ($limit < 5) $limit = 10;
       if ($u) {
@@ -126,10 +130,10 @@ function librusec_block($op='list', $delta='', $edit = array()) {
       $cid = "blockpolka$gg";
       $fields = "BookId, libpolka.UserId AS UserId, Text, Time";        
       if ($gg) {
-        $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE (isnull(bg.UserId) OR bg.UserId != $u) AND";
+        $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE (isnull(bg.UserId) OR bg.UserId != $u) AND libpolka.Id > $maxid AND";
         $limit = " Text != '' AND Flag = '' GROUP BY libpolka.BookId ORDER BY libpolka.ID DESC LIMIT ".$limit; 
       } else {
-        $where = "WHERE";
+        $where = "WHERE libpolka.Id > $maxid AND";
         $limit = " Text != '' AND Flag = '' ORDER BY ID DESC LIMIT ".$limit; 
       } 
       if ($mode == 'w') {
@@ -148,9 +152,9 @@ function librusec_block($op='list', $delta='', $edit = array()) {
         while ($a1 = db_fetch_object($sth)) {
           $u = $a1->UserId;
           $username = Sel("name FROM users WHERE uid = $u");
-          $book = Sel("Title FROM libbook WHERE BookId = $a1->BookId");
-          $a = Sel("AvtorId FROM libavtor WHERE BookId = $a1->BookId");
-          $an = Sel("LastName FROM libavtorname WHERE AvtorId = $a");
+          $book = Sel("Title FROM libbook WHERE BookId = %d", $a1->BookId);
+          $a = Sel("AvtorId FROM libavtor WHERE BookId = %d", $a1->BookId);
+          $an = Sel("LastName FROM libavtorname WHERE AvtorId = %d", $a);
           $t = preg_replace('/\n/', '<br>', stripslashes($a1->Text));
           $r .= bwlist_icons($u)."<b><a href=/polka/show/$u>$username</a></b> ".
               "про <a href=/a/$a>$an</a>: <a href=/b/$a1->BookId>$book</a><br>$t<hr>\n";
@@ -396,5 +400,5 @@ function libListBlackGenre() {
 function libListBlackGG() {
   Global $user;
   if (!$user->uid) return ''; 
-  return Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libuserblackgenre WHERE UserId = %d", $user->uid);
+  return Sel("/*bGG*/GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libuserblackgenre WHERE UserId = %d", $user->uid);
 }

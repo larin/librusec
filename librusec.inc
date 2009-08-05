@@ -626,7 +626,13 @@ function delbooklink ($b, $t) {
 
 function DoGenreRow($b, $g = '') {
   Global $predgen, $user;
-  if (!$g) $g = Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libgenre WHERE BookId = $b"); 
+  if (!$g) {
+    $cid = 'GR'.$b;
+    if (!$g = libcg($cid)) {
+      $g = Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libgenre WHERE BookId = $b"); 
+      libcs($cid, $g, "b$b");
+    } 
+  }  
   if ($predgen == $g) return '';
   $predgen = $g;
   $res = '<p class=genre>';
@@ -817,6 +823,7 @@ function libAddImagesToNode($nid) {
   if (!$nid) return '';
   $ann = Sel("body FROM node_revisions WHERE nid = $nid ORDER BY vid DESC");
   $vid = Sel("MAX(vid) FROM node_revisions WHERE nid = $nid");
+  if (!$vid) return '';
   $sth = SELECT("filepath FROM `upload` JOIN files USING(fid) WHERE `vid` = $vid AND filemime LIKE 'image%'");
   while ($f=db_result($sth))  
     if (!strstr($ann, $f)) {

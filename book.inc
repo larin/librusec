@@ -6,7 +6,7 @@ include_once drupal_get_path('module', 'librusec').'/polka.inc';
 
 function libSaveLog($b, $u) {
   if (!$b) return;
-  if ($u) db_query("INSERT INTO libreaded (BookId, UserId) VALUES($b, $u) ON DUPLICATE KEY UPDATE BookId = BookId");
+  if ($u) db_query("INSERT DELAYED INTO libreaded (BookId, UserId) VALUES($b, $u) ON DUPLICATE KEY UPDATE BookId = BookId");
   else {
     $u = $_SERVER['HTTP_X_REAL_IP'];
     if (!$u) $u = $_SERVER['REMOTE_ADDR'];
@@ -194,7 +194,7 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
     "l2.BookId AS B, count(l2.BookId) as N 
      FROM libreaded as l1 join libreaded as l2 
      WHERE l1.BookId = $b AND l2.BookId <> $b AND l1.UserId = l2.UserId 
-     AND NOW()-l1.Time < 400000000 AND NOW()-l2.Time < 400000000
+     AND NOW()-l1.Time < 100000000 AND NOW()-l2.Time < 100000000
      GROUP BY l2.bookid order by N desc limit 17");
     while ($a1 = dbf($sth)) {
       if ($ad) $ad .= ',';

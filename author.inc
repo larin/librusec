@@ -627,7 +627,7 @@ function AddFileToLibrusec($f, $ext, $a) {
   } 
   foreach($PD->AvtorIds as $aid) {
     if ($BookId = Sel ("libbook.BookId FROM libbook JOIN libavtor USING (BookId) WHERE Title=\"$t\" AND AvtorId = '$aid' AND NOT (1&Deleted)")) break;   
-    $ln = Sel ("LastName FROM libavtorname WHERE AvtorId = $aid");
+    $ln = Sel ("LastName FROM libavtorname WHERE AvtorId = %d", $aid);
     $r .= "Проверяем $ln<br>";
     if ($BookId = Sel ("libbook.BookId FROM libbook JOIN libavtor USING (BookId) JOIN libavtorname USING(AvtorId) 
 WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND NOT (1&Deleted) LIMIT 1")) break;  

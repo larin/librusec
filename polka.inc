@@ -73,7 +73,7 @@ function libpline($a1, $u='', $rss=0) {
   $b = $a1->BookId;
   $book = Sel("Title FROM libbook WHERE BookId = %d", $b);
   $a = Sel("AvtorId FROM libavtor WHERE BookId = %d", $b);
-  $an = Sel("LastName FROM libavtorname WHERE AvtorId = %d", $a);
+  $an = $a ? Sel("LastName FROM libavtorname WHERE AvtorId = %d", $a) : '';
   $t = stripslashes($a1->Text);
   if ($rss) {
     $h = "http://$host";

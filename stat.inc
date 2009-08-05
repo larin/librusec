@@ -18,6 +18,7 @@ function libStat($f='', $f2 = '') {
 
   if ($user->uid > 0) $head .= 
 "Общая статистика сайта: <b>2009</b>: <a href=/awstats/>AWStats 2009</a>
+<a href=/awstats/2009.07.html>2009.07</a>
 <a href=/awstats/2009.06.html>2009.06</a> <a href=/awstats/2009.05.html>2009.05</a> <a href=/awstats/2009.04.html>2009.04</a> 
 <a href=/awstats/2009.03.html>2009.03</a> <a href=/awstats/2009.02.html>2009.02</a> <a href=/awstats/2009.01.html>2009.01</a><br>
 <b>2008</b>: <a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
@@ -60,17 +61,16 @@ function libStat($f='', $f2 = '') {
     'invalid'=> 'Негодные FB2',
   );
   set_title($titles[$f]);
-// статистика хранится в кэше, пересчитывается раз в 17 минут, если позволит загрузка сервера.
-  if ($gg = libListBlackGG()) {
+// статистика хранится в кэше, пересчитывается раз в 170 минут, если позволит загрузка сервера.
+  if (($f == 'w' || $f == 'b' || $f == '24' || $f == 'r') && ($gg = libListBlackGG())) 
     $BGLIST = "JOIN libgenre USING(BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId)";
-  }    
   if (!$admin_actions[$f] && !$admin && $f != 'my') {
     $cid = "libstat-$f-$f2-".$_GET['page'];
     if ($BGLIST) $cid .= "g$gg";
-    if ($r = libcg($cid, 10000)) return $head.$r.theme('pager');
+    if ($r = libcg($cid, 100000)) return $head.$r.theme('pager');
     $key = sem_get(13, 30);
     if (!sem_acquire($key)) return;
-    if ($r = libcg($cid, 10000)) {
+    if ($r = libcg($cid, 100000)) {
       sem_release($key);
       return $head.$r.theme('pager');
     }
@@ -92,7 +92,7 @@ function libStat($f='', $f2 = '') {
       $sth = SELECT ("SUM(1) as Num, BookId FROM liblog as l $BGLIST GROUP BY 2 ORDER BY 1 DESC LIMIT 200");
       while ($a1=dbf($sth)) {
         $b = $a1->BookId;
-        $n = $a1->Num + Sel("SUM(1) FROM libreaded WHERE BookId = $b AND Time > SUBDATE(NOW( ), 7)");
+        $n = $a1->Num + Sel("SUM(1) FROM libreaded WHERE BookId = $b");
         $gb = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b");
         if ($gb) $READED[$gb] += $n;
         else $READED[$b] += $n;
@@ -404,7 +404,7 @@ function libstatblock($delta) {
     'besta' => 'SUM(N) as N, AvtorId, LastName FROM libbook JOIN libavtor USING (BookId) JOIN libavtorname USING(AvtorId)', 
     'bestb' => 'SUM(N) as N, BookId, Title FROM libbook',
     'new'   => 'BookId, Title FROM libbook',
-    'bestw' => 'SUM(1) as N, BookId, Title FROM liblog JOIN libbook USING(BookId)');
+    'bestw' => 'SUM(1) as N, BookId, Title FROM liblog JOIN libbook USING(BookId) WHERE libbook.N > 1000');
   if (!$sql[$delta]) return '';
   $key = sem_get(12, 30);
   if (!sem_acquire($key)) return;
