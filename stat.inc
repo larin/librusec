@@ -1,6 +1,5 @@
 <?php
 module_load_include('inc', 'librusec');
-module_load_include('inc', 'librusec', 'stat_ajax');
 
 function libStat($f='', $f2 = '') {
   Global $user;
@@ -11,18 +10,17 @@ function libStat($f='', $f2 = '') {
 <a href=/stat/b>Популярные книги</a> &nbsp 
 <a href=/stat/r>Оценённые книги</a> &nbsp 
 <a href=/stat/a>Популярные авторы</a> &nbsp 
-<a href=/stat/plo>Плодовитые авторы</a> <br><br>
+<a href=/stat/plo>Плодовитые авторы</a> <br>
 Библиотечное: <a href=/stat/my>Моя работа</a> &nbsp; 
 <a href=/stat/document-author>Авторы файлов</a> &nbsp; 
 <a href=/stat/invalid>Невалидные файлы</a> &nbsp <a href=/stat/tot>Расклад по типам файлов</a>
-<br><br>";
+<br>";
 
-
-  if ($user->uid > 0) $head .= "Общая статистика сайта: <b>2009</b>: <a href=/awstats/>AWStats 2009</a><br>
-<a href=/awstats/2009.06.html>2009.06</a> <br>
-<a href=/awstats/2009.05.html>2009.05</a> <br>
-<a href=/awstats/2009.04.html>2009.04</a> <br>
-<a href=/awstats/2009.03.html>2009.03</a> <br><a href=/awstats/2009.02.html>2009.02</a> <br><a href=/awstats/2009.01.html>2009.01</a><br>
+  if ($user->uid > 0) $head .= 
+"Общая статистика сайта: <b>2009</b>: <a href=/awstats/>AWStats 2009</a>
+<a href=/awstats/2009.07.html>2009.07</a>
+<a href=/awstats/2009.06.html>2009.06</a> <a href=/awstats/2009.05.html>2009.05</a> <a href=/awstats/2009.04.html>2009.04</a> 
+<a href=/awstats/2009.03.html>2009.03</a> <a href=/awstats/2009.02.html>2009.02</a> <a href=/awstats/2009.01.html>2009.01</a><br>
 <b>2008</b>: <a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
 <a href=/awstats/2008.09.html>2008.09</a> <a href=/awstats/2008.08.html>2008.08</a> <a href=/awstats/2008.07.html>2008.07</a> 
 <a href=/awstats/2008.06.html>2008.06</a> <a href=/awstats/2008.05.html>2008.05</a> <a href=/awstats/2008.04.html>2008.04</a> 
@@ -63,23 +61,22 @@ function libStat($f='', $f2 = '') {
     'invalid'=> 'Негодные FB2',
   );
   set_title($titles[$f]);
-// статистика хранится в кэше, пересчитывается раз в 17 минут, если позволит загрузка сервера.
+// статистика хранится в кэше, пересчитывается раз в 170 минут, если позволит загрузка сервера.
+  if (($f == 'w' || $f == 'b' || $f == '24' || $f == 'r') && ($gg = libListBlackGG())) 
+    $BGLIST = "JOIN libgenre USING(BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId)";
   if (!$admin_actions[$f] && !$admin && $f != 'my') {
     $cid = "libstat-$f-$f2-".$_GET['page'];
-    if ($r = libcg($cid, 10000)) return $head.$r.theme('pager');
+    if ($BGLIST) $cid .= "g$gg";
+    if ($r = libcg($cid, 100000)) return $head.$r.theme('pager');
     $key = sem_get(13, 30);
     if (!sem_acquire($key)) return;
-    if ($r = libcg($cid, 10000)) {
+    if ($r = libcg($cid, 100000)) {
       sem_release($key);
       return $head.$r.theme('pager');
     }
   }  
+  
   switch ($f) {
-    case SERVER: 
-      sem_release($key);
-      print "<pre>"; print_r ($_COOKIE); print "</pre><hr><pre>"; print_r ($_SERVER);
-      phpinfo(); 
-    exit;
     case 'about':
       $r = "<p>Основа - свободная CMS Drupal версия 6.9(<a href=http://drupal.org>http://drupal.org</a>) + руссификация интерфейса (<a href=http://drupal.ru>http://drupal.ru</a>) + <a href=/allbooks>модуль Либрусек.</a>.<ol>Установленные модули Друпала:";
       $sth = SELECT ("name FROM `system` WHERE `type` LIKE 'module' AND `status` = 1 ORDER BY 1");
@@ -92,27 +89,49 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'w':
-      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
-      $r = "<div id='statlist'>";
-      $r .= "Фильтровать по жанру: ".genres($genre);
-      $r .= stat_read_weekly($genre);
-      $r .= "</div>";
+      $sth = SELECT ("SUM(1) as Num, BookId FROM liblog as l $BGLIST GROUP BY 2 ORDER BY 1 DESC LIMIT 200");
+      while ($a1=dbf($sth)) {
+        $b = $a1->BookId;
+        $n = $a1->Num + Sel("SUM(1) FROM libreaded WHERE BookId = $b");
+        $gb = Sel("GoodId FROM libjoinedbooks WHERE BadId = $b");
+        if ($gb) $READED[$gb] += $n;
+        else $READED[$b] += $n;
+      }
+      arsort($READED);  
+      foreach($READED as $b=>$n) {
+        if ($i++>100) break;
+        $av = libAvtorsNames($b);
+        $r .= "<li>$n: $av - ".bl($b);
+      }
+      $r = libListBlackGenre()."<ul>$r</ul>";
     break;
 
     case '24': 
-      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
-      $r = "<div id='statlist'>";
-      $r .= "Фильтровать по жанру: ".genres($genre);
-      $r .= stat_read24($genre);
-      $r .= "</ul>";
+      if ($BGLIST) $BGLIST .= " AND ";
+      else $BGLIST = "WHERE";
+      $sth = SELECT("SUM(1) as Num, liblog.BookId as BookId FROM `liblog` JOIN libbook USING (BookId) $BGLIST liblog.Time > SUBDATE(NOW( ), 1) GROUP BY 2 ORDER BY 1 DESC LIMIT 100");
+      while ($a1=dbf($sth)) {  
+        $av = libAvtorsNames($a1->BookId);
+        $r .= "<li>$a1->Num: $av - ".bl($a1->BookId);
+      }
+      $r = libListBlackGenre()."<ul>$r</ul>";
     break;
 
     case 'b':
-      $genre = isset($_GET['genre'])? $_GET['genre'] : 0;
-      $r = "<div id='statlist'>";
-      $r = "Фильтровать по жанру: ".genres($genre);
-      $r .= stat_top($genre);
-      $r .= "</div>";
+      if ($BGLIST) {
+        $BGLIST .= " AND ";
+        $GROUP = "GROUP BY 1, 2";
+      } else {
+        $BGLIST = "WHERE";
+      }
+      $q = "SELECT N, BookId FROM libbook $BGLIST NOT Deleted&1 $GROUP ORDER BY 1 DESC";
+      $count = "SELECT count(*) FROM libbook $BGLIST NOT Deleted&1";
+      $sth = pager_query($q, 100, 0, $count);
+      while ($a1=dbf($sth)) {  
+        $av = libAvtorsNames($a1->BookId);
+        $r .= "<li>$a1->N: $av - ".bl($a1->BookId);
+      }
+      $r = libListBlackGenre()."<ul>$r</ul>";
     break;
 
     case 'tot': 
@@ -133,9 +152,9 @@ function libStat($f='', $f2 = '') {
       if ($f2 == 'av') $order = "ORDER BY av DESC, 1 DESC";
       if ($f2 == 'g') $order = "ORDER BY m1 DESC, 1 DESC";
       if ($f2 == 'b') $order = "ORDER BY m2, 1 DESC";
-      $sth = pager_query("SELECT SUM(1) as s, SUM(Rate) as r, MAX(Rate) AS m1, MIN(Rate) AS m2, BookId as b, AVG(Rate) as av FROM librate GROUP BY BookId $order", 100, 0, 
-                         "SELECT count(*) FROM libbook WHERE NOT Deleted&1");
-      $r = "<table><tr><th>Книга<th><a href=/stat/r>Оценивших</a><th><a href=/stat/r/av>Среднее</a><th><a href=/stat/r/g>Лучшее</a><th><a href=/stat/r/b>Худшее</a>";
+      $sth = pager_query("SELECT SUM(1) as s, SUM(Rate) as r, MAX(Rate) AS m1, MIN(Rate) AS m2, BookId as b, AVG(Rate) as av FROM librate $BGLIST GROUP BY BookId $order", 100, 0, 
+                         "SELECT count(*) FROM libbook $BGLIST");
+      $r = libListBlackGenre()."<table><tr><th>Книга<th><a href=/stat/r>Оценивших</a><th><a href=/stat/r/av>Среднее</a><th><a href=/stat/r/g>Лучшее</a><th><a href=/stat/r/b>Худшее</a>";
       while ($a1=dbf($sth)) 
         $r .= "<tr><td>".DoLibRow($a1->b, 'nobreak author')."<td>$a1->s<td>".(((integer)(100*$a1->r/$a1->s))/100)."<td>$a1->m1<td>$a1->m2\n";
       $r .= "</table>";
@@ -385,7 +404,7 @@ function libstatblock($delta) {
     'besta' => 'SUM(N) as N, AvtorId, LastName FROM libbook JOIN libavtor USING (BookId) JOIN libavtorname USING(AvtorId)', 
     'bestb' => 'SUM(N) as N, BookId, Title FROM libbook',
     'new'   => 'BookId, Title FROM libbook',
-    'bestw' => 'SUM(1) as N, BookId, Title FROM liblog JOIN libbook USING(BookId)');
+    'bestw' => 'SUM(1) as N, BookId, Title FROM liblog JOIN libbook USING(BookId) WHERE libbook.N > 1000');
   if (!$sql[$delta]) return '';
   $key = sem_get(12, 30);
   if (!sem_acquire($key)) return;

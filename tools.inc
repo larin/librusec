@@ -44,10 +44,15 @@ function libNew() {
   $sth = SELECT("DISTINCT FileType FROM libbook WHERE NOT (Deleted&1) ". ($l ? " AND Lang = '$l'" : ""));
   while ($v = db_result($sth)) $seltype .= "<option value='$v'".($v==$t?" selected":"").">$v";
   $r .= "Формат: <select onChange=\"document.location='/new/'+options[selectedIndex].value+'/$l'\";><option>$seltype</select> ";
-
   $r .= AnnChkbox().'</form>';
   $pg = $_GET['page'];
-  $CacheFile = 'cache/new/'.($sa?'ann.':'').($rd?'rd.':'').($asql?'anonin.':'')."$pg$lng.html";
+  if ($gg = libListBlackGG()) {
+    $BGLIST = "JOIN libgenre ON(libgenre.BookId = libbook.BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId) AND";
+    $GROUPBY = "GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9";
+  } else {
+    $BGLIST = 'WHERE';
+  }   
+  $CacheFile = 'cache/new/'.($sa?'ann.':'').($rd?'rd.':'').($asql?'anonin.':'')."$pg$lng$gg.html";
   if ($fh = libOpenCacheFile($CacheFile, 1200)) {
 //    $nn = Sel("count(*) FROM libbook WHERE NOT (Deleted&1) $lsql $asql");
     $nn = 100000;
@@ -57,7 +62,7 @@ function libNew() {
       $wherereaded = "AND libreaded.UserId IS NULL";
     }
     $fields = "Lang, N, FileType, FileSize, Deleted, Title, Title1";
-    $sth = pgq("SELECT libbook.BookId AS BookId, $fields, libbook.Time AS Time FROM libbook $joinreaded WHERE NOT (Deleted&1) $wherereaded $lsql $asql ORDER BY BookId DESC", $nn);
+    $sth = pgq("SELECT libbook.BookId AS BookId, $fields, libbook.Time AS Time FROM libbook $joinreaded $BGLIST NOT (Deleted&1) $wherereaded $lsql $asql $GROUPBY ORDER BY BookId DESC", $nn);
     while ($a1 = dbf($sth)) { 
       if ($tm = ptm($a1->Time))
         fwrite($fh, "<br><h4>$tm</h4>\n");
@@ -67,7 +72,7 @@ function libNew() {
     fwrite($fh, "</form><br>".theme('pager'));
     fclose($fh);
   }
-  return $r.libReadCacheFile($CacheFile);
+  return $r.libListBlackGenre().libReadCacheFile($CacheFile);
 }
 
 function libSeq() {
@@ -217,14 +222,14 @@ function libTools() {
       switch($_GET['op']) {
         case 'setrate':
           $r = 1*($_GET['r']);
-          if ($r == 0) db_query("DELETE FROM librate WHERE BookId = $b AND UserId = $u");
+          if ($r == 0) Delete('librate WHERE BookId = %d AND UserId = %d', $b, $u);
           else if ($r > 0 && $r < 6) db_query("INSERT INTO librate (BookId, UserId, Rate) VALUES($b, $u, $r) ON DUPLICATE KEY UPDATE Rate=$r");
           libcd("librate$u");
         exit;
 
         case 'setquality':
           $q = 1*($_GET['qq']);
-          if ($q == 0) db_query("DELETE FROM libquality WHERE BookId = $b AND uid = $u");
+          if ($q == 0) Delete('libquality WHERE BookId = %d AND uid = %d', $b, $u);
           else db_query("INSERT INTO libquality (q, BookId, uid) VALUES ($q, $b, $u) ON DUPLICATE KEY UPDATE q=$q");
           bookquality($b, 1); //reset cache
         exit;

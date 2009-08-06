@@ -6,7 +6,7 @@ include_once drupal_get_path('module', 'librusec').'/polka.inc';
 
 function libSaveLog($b, $u) {
   if (!$b) return;
-  if ($u) db_query("INSERT INTO libreaded (BookId, UserId) VALUES($b, $u) ON DUPLICATE KEY UPDATE BookId = BookId");
+  if ($u) db_query("INSERT DELAYED INTO libreaded (BookId, UserId) VALUES($b, $u) ON DUPLICATE KEY UPDATE BookId = BookId");
   else {
     $u = $_SERVER['HTTP_X_REAL_IP'];
     if (!$u) $u = $_SERVER['REMOTE_ADDR'];
@@ -81,7 +81,7 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
     case 'pdf':
     case 'pdb':
     case 'epub':
-    case 'java':
+    case 'lrf':
       return libDownloadBook($b, arg(2));
   } 
 
@@ -159,7 +159,8 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
       } else $img = ''; 
     }  
   }
-  $r .= $img."<a href=javascript:show('link1')>(ссылка для форума (BBCode))</a> <a href=javascript:show('link2')>(ссылка для блога (HTML))</a><br>
+  if ($user->theme != 'mobile')
+    $r .= $img."<a href=javascript:show('link1')>(ссылка для форума (BBCode))</a> <a href=javascript:show('link2')>(ссылка для блога (HTML))</a><br>
 <div id=link1 style='position:absolute;left:-4000px'><br><br>".'[url='."$host/b/$b".']<br>[b]'.$tit.'[/b]<br>'.$imgf.'['."/url]<br><br></div>
 <div id=link2 style='position:absolute;left:-4000px'><br><br>&lt;a href=$host/b/$b&gt;<br>&lt;b&gt;$tit&lt;/b&gt;<br>$imgb&lt;/a&gt;<br><br></div>";
 
@@ -193,6 +194,7 @@ document.write(\'<script type="text/javascript" charset="windows-1251" src="ht\'
     "l2.BookId AS B, count(l2.BookId) as N 
      FROM libreaded as l1 join libreaded as l2 
      WHERE l1.BookId = $b AND l2.BookId <> $b AND l1.UserId = l2.UserId 
+     AND NOW()-l1.Time < 100000000 AND NOW()-l2.Time < 100000000
      GROUP BY l2.bookid order by N desc limit 17");
     while ($a1 = dbf($sth)) {
       if ($ad) $ad .= ',';
@@ -246,7 +248,7 @@ function libDownloadBook($b, $dtp = 'fb2') {
   libSaveLog($b, $u);
   if ($a1->FileType == 'fb2') {
     if ($dtp == 'pdf') drupal_goto("http://www.fb2pdf.com/convert.php?auto=yes&url=http://lib.rus.ec/b/$b/fb2");
-    if ($dtp == 'java') drupal_goto("http://books.1gb.ru/smsrequest?bookId=$b");
+    if ($dtp == 'lrf') drupal_goto("http://onlinelrf.com/Convert.aspx?url=http://lib.rus.ec/b/$b/fb2");
     $zip = MakeZipFile($b, $dtp);
     if ($zip) return drupal_goto($zip);
     else return "Не получилось изготовить файл";

@@ -313,3 +313,20 @@ CREATE TABLE IF NOT EXISTS `libtopadvert` (
   PRIMARY KEY  (`BookId`),
   KEY `Time` (`Time`)
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `libuserblackgenre` (
+`UserId` INT NOT NULL ,
+`GenreId` INT NOT NULL ,
+PRIMARY KEY ( `UserId` , `GenreId` )
+) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `librusec` (
+  `cid` varchar(255) NOT NULL default '',
+  `data` varchar(21000) default NULL,
+  `expire` int(11) NOT NULL default '0',
+  `created` int(11) NOT NULL default '0',
+  `headers` varchar(255) default NULL,
+  `serialized` smallint(6) NOT NULL default '0',
+  PRIMARY KEY  (`cid`),
+  KEY `expire` (`expire`)
+) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

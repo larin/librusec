@@ -38,6 +38,8 @@ function libMass() {
             if ($dtp == 'pdf') {
               $ii++;
               $pdfform .= "<input type=text size=30 name=book$ii value=http://lib.rus.ec/b/$b/fb2><br>\n";
+            } elseif($dtp == 'lrf') {
+              $pdfform .="http://lib.rus.ec/b/$b/fb2\n";
             } else {  
               $zip = MakeZipFile($b, $dtp);
               if (file_exists($zip)) $f = $zip;    
@@ -56,6 +58,10 @@ function libMass() {
         return  "<h2>Для конвертации выбранных книг в pdf придётся посетить другой сайт</h2>
         <form id=uploadform enctype='multipart/form-data' action=http://fb2pdf.com/batch_convert.php 
         method=POST>$pdfform<input type=submit value='отправить на конвертацию'></form>";
+      if($dtp == 'lrf') 
+        return  "<h2>Для конвертации выбранных книг в lrf придётся посетить другой сайт</h2>
+                <form id=uploadform enctype='multipart/form-data' action='http://onlinelrf.com/Convert.aspx' method='POST'> 
+                <textarea name='linkList' id='linkList'>$pdfform</textarea><br/><input type=submit value='отправить на конвертацию'></form>";
       if ($filelist) {
         $id = Sel ("ID FROM libmass WHERE books = '$books'");
         print "<br><br>Готовится архив. Подождите.<br><br>";
@@ -114,7 +120,7 @@ function libMass() {
          }  
          if (preg_match('/\((.+)\s*-\s*(\d+)\)/', Sel("Title FROM libbook WHERE BookId = $b"), $m)) {
            if (!$seqname) $seqname = trim($m[1]);
-         } else $m[2] = Sel("SeqNumb FROM libbook WHERE BookId = $b");  
+         } else $m[2] = Sel("SeqNumb FROM libseq WHERE BookId = $b");  
          $bks .= "<input size=1 name=$b value='$m[2]'> ".bl($b)."<br>";
        }
        $iii++;

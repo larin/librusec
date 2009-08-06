@@ -315,7 +315,7 @@ function libdonate4avt() {
       $r .= sprintf(' и $%01.2f при разделе, итого $%01.2f', $s1/100, ($s+$s1)/100);
     if ($s3 = Sel("SUM(Sum) FROM libdonations WHERE AvtorId = $a AND Type = 9"))
       $r .= sprintf(". Из этого выплачено $%01.2f, осталось $%01.2f", $s3/100, ($s+$s1-$s3)/100);
-    if ($s+$s1-$s3 > 2000) $r .=  sprintf(" &nbsp; &nbsp; &nbsp; <b>Пора переводить: $%01.2f</b>", ($s+$s1-$s3)/100);
+    if ($s+$s1-$s3 >= 5000) $r .=  sprintf(" &nbsp; &nbsp; &nbsp; <b>Пора переводить: $%01.2f</b>", ($s+$s1-$s3)/100);
   }
   $r .= "</ol>";
   return $r;

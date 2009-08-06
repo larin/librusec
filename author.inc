@@ -39,7 +39,10 @@ function libAvtor() {
     }
   }  
   if (arg(2) == 'rss') return libAvtorRSS($a);
+
   set_title($aname=AvtorName($a));
+  drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="Новости автора '.$aname.' на Либрусеке RSS" href="/a/'.$a.'/rss" />');  
+  
   $a1 = S("* FROM libavtorname WHERE AvtorId = $a");
   $a1->av = $av;
   $a1->aname = $aname;
@@ -624,7 +627,7 @@ function AddFileToLibrusec($f, $ext, $a) {
   } 
   foreach($PD->AvtorIds as $aid) {
     if ($BookId = Sel ("libbook.BookId FROM libbook JOIN libavtor USING (BookId) WHERE Title=\"$t\" AND AvtorId = '$aid' AND NOT (1&Deleted)")) break;   
-    $ln = Sel ("LastName FROM libavtorname WHERE AvtorId = $aid");
+    $ln = Sel ("LastName FROM libavtorname WHERE AvtorId = %d", $aid);
     $r .= "Проверяем $ln<br>";
     if ($BookId = Sel ("libbook.BookId FROM libbook JOIN libavtor USING (BookId) JOIN libavtorname USING(AvtorId) 
 WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND NOT (1&Deleted) LIMIT 1")) break;  

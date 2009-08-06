@@ -31,8 +31,8 @@ function LA() {
     $Data = fread($fh, 55);
     fclose($fh);
     list ($la2) = split(' ', $Data);
-    $LoadAvg = max($la1, $la2)/4;
-    return $LoadAvg;
+    $LoadAvg = max($la1, $la2)/3;
+    return $LoadAvg; 
   }
   else return 0.5;
 }
@@ -162,19 +162,27 @@ function pgq($query, $t) {
 }
 
 function S($st) {
-  return dbf(SELECT($st));
+  $args = func_get_args();
+  array_shift($args);
+  return db_fetch_object(db_query("SELECT $st", $args));
 }
 
 function Insert ($table, $columns, $values) { 
   $args = func_get_args();
   array_shift($args);array_shift($args);array_shift($args);
-  return db_query("INSERT INTO $table ($columns) values ($values)", $args);
+  return db_query("INSERT DELAYED INTO $table ($columns) values ($values)", $args);
 }
 
 function Update ($table, $columns, $cond)   { 
   $args = func_get_args();
   array_shift($args);array_shift($args);array_shift($args);
   return db_query("UPDATE $table SET $columns WHERE $cond", $args);
+}
+
+function Delete($st) {
+  $args = func_get_args();
+  array_shift($args);
+  return db_query("DELETE FROM $st", $args);
 }
 
 function LogAction ($sql, $desc, $undo, $BookId = 0) {
@@ -276,15 +284,15 @@ function AddSeqId ($s) {
 }
 
 function RemoveBook($b) {
-  db_query("DELETE FROM libbook WHERE BookId=$b");
-  db_query("DELETE FROM libgenre WHERE BookId=$b");
-  db_query("DELETE FROM libavtor WHERE BookId=$b");
-  db_query("DELETE FROM liblog WHERE BookId=$b");
-  db_query("DELETE FROM libreaded WHERE BookId=$b");
-  db_query("DELETE FROM libstat WHERE BookId=$b");
-  db_query("DELETE FROM libseq WHERE BookId=$b");
-  db_query("DELETE FROM libblocked WHERE BookId=$b");
-  db_query("DELETE FROM libfilename WHERE BookId=$b");
+  Delete('libbook WHERE BookId=%d', $b);
+  Delete('libgenre WHERE BookId=%d', $b);
+  Delete('libavtor WHERE BookId=%d', $b);
+  Delete('liblog WHERE BookId=%d', $b);
+  Delete('libreaded WHERE BookId=%d', $b);
+  Delete('libstat WHERE BookId=%d', $b);
+  Delete('libseq WHERE BookId=%d', $b);
+  Delete('libblocked WHERE BookId=%d', $b);
+  Delete('libfilename WHERE BookId=%d', $b);
   libsettag("b$b");
 }
 
@@ -395,11 +403,11 @@ function AvtorName($a, $t=' ', $LastFirst = 0) {
 
 function libSelectFileType($b = 0) {
   Global $user;  
-  if (!$user->uid || !variable_get('librusec_Convert', '')) return $b ? " &nbsp; (<a href=/b/$b/java>java</a>)" : '';
+  if (!$user->uid || !variable_get('librusec_Convert', '')) return '';
   $seltp = "<select id=useropt name=dtp onchange=setuseropt('D')>";
   $tp = GetUserOpt('D');
   if (!$tp) $tp = 'fb2';
-  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub', 'java') as $fmt)  
+  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub', 'lrf') as $fmt)  
     $seltp .= '<option '.($fmt==$tp?' selected':'').">$fmt";
   $seltp .= '</select>';
   return $seltp;
@@ -440,7 +448,7 @@ function DoLibRow($b, $style='') {
   if (!$a1 || !$ShowEN && $a1->Lang != 'ru') return ''; 
   $edit = strstr($style,'edit') && !variable_get('librusec_Mirror', '0');
   
-  if ($style != 'rateonly' && (!$user->uid || !strstr($style,'seltype'))) {
+  if ($style != 'rateonly' && !libListBlackGG() && (!$user->uid || !strstr($style,'seltype'))) {
     $cid = 'LibRow'.md5($b.$style.$sa).$ShowEN;
     if ($r = libcg($cid)) 
       apc_inc('Dolibrow Hits');
@@ -621,7 +629,13 @@ function delbooklink ($b, $t) {
 
 function DoGenreRow($b, $g = '') {
   Global $predgen, $user;
-  if (!$g) $g = Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libgenre WHERE BookId = $b"); 
+  if (!$g) {
+    $cid = 'GR'.$b;
+    if (!$g = libcg($cid)) {
+      $g = Sel("GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libgenre WHERE BookId = $b"); 
+      libcs($cid, $g, "b$b");
+    } 
+  }  
   if ($predgen == $g) return '';
   $predgen = $g;
   $res = '<p class=genre>';
@@ -643,8 +657,11 @@ function avl($a, $t=' ', $o='') {
 }
 
 // выдаёт название книги (с ссылкой) на BookId
-function bl($b) {
-  return "<a href=/b/$b>".Sel("Title FROM libbook WHERE BookId = $b")."</a>"; 
+function bl($b) {  
+  $tit = S("Title, Title1 FROM libbook WHERE BookId = $b"); 
+  $t = $tit->Title;
+  if ($tit->Title1) $t .= " [$tit->Title1]";
+  return "<a href=/b/$b>$t</a>"; 
 }
 
 // выдаёт фамилию, имя и отчество автора (с ссылкой)
@@ -810,6 +827,7 @@ function libAddImagesToNode($nid) {
   if (!$nid) return '';
   $ann = Sel("body FROM node_revisions WHERE nid = $nid ORDER BY vid DESC");
   $vid = Sel("MAX(vid) FROM node_revisions WHERE nid = $nid");
+  if (!$vid) return '';
   $sth = SELECT("filepath FROM `upload` JOIN files USING(fid) WHERE `vid` = $vid AND filemime LIKE 'image%'");
   while ($f=db_result($sth))  
     if (!strstr($ann, $f)) {
@@ -1134,4 +1152,14 @@ function libGetRate($b) {
   }  
   libcs($cid, $_libgetrate, "b$b"); 
   return $r;
+}
+
+function LibListGenres($b) {
+  Global $user;
+  if (!$user->uid) return '';
+  $sht = SELECT("* FROM libgenre JOIN libgenrelist USING (GenreId) WHERE BookId = %d", $b);
+  while($a1 = dbf($sth)) {
+    $r .= "$a1->GenreDesc <a href=/g/$a1->GenreId/hide>(скрыть)</a> ";
+  } 
+  return $r ? "($r)" : '';
 }

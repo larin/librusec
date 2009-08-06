@@ -1,0 +1,329 @@
+﻿ я:  добрый день
+ burchik:  а ты почему на github обратно не запушил изменения?
+ Отправлено в 13:17, четверг
+ burchik:  я не сильно нагло спрашиваю?)
+ я:  не разбирался ещё как что
+ burchik:  я вижу, ты с lankier обновился
+и soshial говорит, ещё баг добавил про количество скачавших
+)
+ я:  убрал уже
+ланкер сглючил, а я не проверил
+ burchik:  ага, хорошо. а тебе помощник в виде меня не нужен, чтобы коммиты применять на сайте и всё это поддерживать?
+ Отправлено в 13:20, четверг
+ я:  давай
+я буду по старому, менять всё на сайте, раз в сутки изменения пакуются в /sql/librusec.zip
+а ты вноси их в базу для общего обозрения
+или какой скрипт настроим...
+ burchik:  это-то лучше сделать по-другому
+а то git-у надо помечать, что ты спуллился с человека
+чтобы http://github.com/larin/librusec/network менялось
+это не мешает тебе свои изменения вносить
+просто коммить их в репозиторий тоже
+тебе для этого ветка поэтому и сделана
+ я:  как это делать?
+ burchik:  делаешь git init на папку с проектом
+вообще, я потому и говорю про помощь. там действия слегка нетривиальны для того, кто с git мало работал.
+ я:  я с ним никогда не работал
+ burchik:  вот-вот)
+ я:  да и с аналогами не особо
+очень давно и неправда
+ Отправлено в 13:26, четверг
+ burchik:  поэтому лучше мне логин создай на сайте по ssh, я всё оформлю и скриптики напишу
+могу и сюда инструкции сказать.
+ я:  [root@lib ~]# yum install git
+.......................................
+Complete!
+[root@lib ~]#
+ burchik:  он обычно git-core называется
+потому что git в debian какая-та тулзень для переводов что-ли)
+и не только в debian
+cd каталог-проекта
+git init
+git remote add origin git@github.com:larin/librusec.git
+теперь надо настроить ключик. я создавал для тебя ключ, чтобы начальные изменения внести
+его надо тебе дать или ты другой создашь?
+ Отправлено в 13:30, четверг
+ burchik:  на https://github.com/account ключики настраиваются, приватный ключик у тебя в ~/.ssh/id_rsa должен быть, публичный на сайте
+плиз отпишись как сделаешь, я продолжение напишу
+каталог-проекта = каталог модуля librusec
+ я:  GIT(7)                            Git Manual                            GIT(7)
+
+NAME
+      git - the stupid content tracker
+оно?
+ burchik:  ага, оно
+ я:  давай ключик
+ burchik:  ----BEGIN RSA PRIVATE KEY----
+MIIEogIBAAKCAQEAvKbA2Vq3iVewuiehVY8fZ6ezvrEGzyfpGWF8iUerHb6fX3L/
+7Z2NkILBt19KTKH0EvMDZldNsNUOqr30ZKd54O9XZRsiKGaguoC+2JCpXKoLNrXW
+igM+f3Siq4yHY1UflK51CmeWipJ098CPzXZYLAZm0ZVnhNfWeIOkHTTFXIdY74Qn
+YF2347HG5VfysaUBlH8iu5accaVED4DkGk/L3RSDhvQWvhJdnmVsIf+6EXhyHvvO
+IMjHGvV+SUoDZI1bmjVaA2Urs+2pqV4P7iYDDG4ixWMPPNuL24Tsa9qdeYEoZb2f
+1x9yTkLvdWhyF6rlDMXedQDnTLOVyqzY93IMVQIBIwKCAQEAt0LnOYtTNPYZZGED
+H+oegfNeJvUcjrkOUyuAStfoDkQlym+2yZG8uESBqtGYojbtGbjeuzA816pmBPMK
+quvVe2wpAyGsJz8fyx37OMcK7E1p+qIDnAMmxPT1yzgOfcBn0kMSnGSg3mJi/01Y
+fnL2kSrKR/A4rO7tmaRzihYBjRQWVUjhdWvVbBDgHHtaCp1M5pYwB6bLZH6VeMVu
+7JyGfI5gcsO3svc/WIrilNj0hHNlRN1yy8dUzr5Zm8MLkQ03iFZ7ajLP2KpgVGdr
+yyQbeCubI8XqWzmt0ZnjhjhsizpBNowluvf3gadHcMoirUWjvks556VokdhI92oO
+/jgrkwKBgQD2eNuM6mpykkJQVz7CytPI7x1I2D78ScN/8/0M/w3ob1FMcVeq67gY
+OV6X9bsEK3aJ8Nukxq2z69ry1ffysu394qckKp4L2tMAc9XlaDw2apbOeDyT9TSZ
+ockZTZPvudgfQQt/Vr4RHd3XOde6Gwspx7zHuPmkb2EUoBKPRVDWcwKBgQDD8bBn
+E6npnm0mcMdiRU1pe8c/CKRlXoyitceorzdY/JoQCOIBixB1IHfb3lZQxxKllGlg
+Wyg74c8RFr39QfOkjRcRJ7DviR/6wIcdcQhlD4xSt2JGRBi/S2EsqrI+AylNiqlj
+Erx4/cBszvzflYy/4wbxtvsa++TMpGHQ2ZwYFwKBgHe3C42WbjemIDWmuBV4dX7a
+ipEYk58cg4dKn3tXT+Xs7Pk+XcgMF5a8x4ujPZRPn/nbY16ppNO7s31DWyy9TwZJ
+hGIGEkBFtvGXWUOKZmOS24jbUJ+i/EqfCee392XPS7dovHEM3/mva8BPS4ZHplYf
+L8647kiN3rI/HvUhquvRAoGBALi/To0SikKrUPhbtK0cxVTTyn1CqaFnxm2G0jFU
+vygEHDsBD5sOFtTVeFL2NCBGqy5nXApkk6YsrUqgaf1qEZsl8S1ukOHZD4YF+7ys
+ZwAzOylrE4QUUdjvTP46iszBJvFW2jjXJrs4ZPjgasQt6xtSZaIS7MGrq9bkIbZJ
+hIu9AoGAQRcXIqEVRz0Vl3fsTXXDANru9g4jkP8zBunyE8ZCxISp2Iwx4Uxn3SjZ
+WcSCj3SOjYdgcuImEQBPRTZ6fJbVgObEN8PKOVZ+sV3X8sL31IgNTlDp1gGwVQ5e
+WzooAjhEmIaFTLKuWQqXC8PhDWwoTE/ZsOUstiXIZRCcH5YvFos=
+----END RSA PRIVATE KEY----
+ я:  ls: cannot access /root/.ssh: No such file or directory
+создать?
+ burchik:  ага
+а ты из-под root это будешь всё делать?
+ я:  да
+ burchik:  ок.
+так, когда ключик есть на месте, можно сделать git fetch origin
+ я:  [root@lib librusec]# git fetch origin
+The authenticity of host 'github.com (65.74.177.129)' can't be established.
+RSA key fingerprint is 16:27:ac:a5:76:28:2d:36:63:1b:56:4d:eb:df:a6:48.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'github.com,65.74.177.129' (RSA) to the list of known hosts.
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@         WARNING: UNPROTECTED PRIVATE KEY FILE!          @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+Permissions 0644 for '/root/.ssh/id_rsa' are too open.
+It is recommended that your private key files are NOT accessible by others.
+This private key will be ignored.
+bad permissions: ignore key: /root/.ssh/id_rsa
+Permission denied (publickey).
+fatal: The remote end hung up unexpectedly
+что поставить, 600
+ burchik:  ага, точно, chmod 600 ~/.ssh/id_rsa
+ я:  Enter passphrase for key '/root/.ssh/id_rsa':
+ burchik:  пустую
+ я:  это чё?
+понял
+[root@lib librusec]# git fetch origin
+Enter passphrase for key '/root/.ssh/id_rsa':
+Permission denied (publickey).
+fatal: The remote end hung up unexpectedly
+[root@lib librusec]#
+ burchik:  хм, я пустую задавал, как обычно)
+ну давай новый ключ создадим тогда
+ я:  давай
+как?
+ burchik:  ssh-keygen
+ я:  [root@lib librusec]# ssh-keygen
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa):
+/root/.ssh/id_rsa already exists.
+Overwrite (y/n)? y
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /root/.ssh/id_rsa.
+Your public key has been saved in /root/.ssh/id_rsa.pub.
+The key fingerprint is:
+86:0b:87:a7:ca:aa:2a:e6:ed:37:b5:90:04:60:88:3b root@lib.rus.ec
+[root@lib librusec]#
+ burchik:  ага. теперь его на https://github.com/account надо добавить
+/root/.ssh/id_rsa.pub
+ Отправлено в 13:43, четверг
+ я:  [root@lib librusec]# git fetch origin
+warning: no common commits
+remote: Counting objects: 74, done.
+remote: Compressing objects: 100% (74/74), done.
+remote: Total 74 (delta 37), reused 0 (delta 0)
+Unpacking objects: 100% (74/74), done.
+From git@github.com:larin/librusec
+* [new branch]      master     -> origin/master
+отработало?
+ burchik:  ага, хорошо
+да
+теперь оно скачало ветку master, но её не применило, т.е. она только в базе данных .git
+щас помедитирую полминутки, как удобнее текущие изменения применить будет.
+ Отправлено в 13:47, четверг
+ burchik:  пока можешь пару remotes добавить: git remote add lankier git://github.com/lankier/librusec.git
+git remote add git://github.com/soshial/librusec.git
+аа, имя забыл
+git remote add soshial git://github.com/soshial/librusec.git
+ я:  что это даёт?
+ burchik:  чтобы потом изменения с других пользователей применить
+у тебя этот путь рабочий и в ней нормально применять изменения или другая для девелопмента есть?
+ Отправлено в 13:50, четверг
+ я:  он един
+ burchik:  ок
+ Отправлено в 13:51, четверг
+ burchik:  и скопируй на всякий случай содержимое проекта куда-нибудь, чтобы я не боялся, что что-нибудь пойдёт не так)
+ я:  оно ежедневно автоматически копируется на другой сервер
+вместе с БД и новыми книжками
+ burchik:  у тебя там изменений после последний копии нет т.е.?
+ я:  одно кажется
+ burchik:  просто, в какой-нибудь каталог рядом, чтобы если что файлы вернуть.
+.git, который создал git, не надо)
+ я:  скопировал
+ burchik:  так, а нормально на ветку lankier переключиться как основу изменений?
+ Отправлено в 13:57, четверг
+ burchik:  т.е. чтобы лежали твои старые изменения, которые до 1 июля, потом изменения lankier, потом изменения рабочей версии?
+ Отправлено в 13:58, четверг
+ я:  я вчера чего-то там мудрил с сериалами
+не хочется терять
+сегодня правил ошибки ланкера
+ burchik:  изменения рабочей версии будут поверх всех коммитов.
+и применятся почти сразу же, ничего не потеряется
+ я:  ок
+ Отправлено в 14:00, четверг
+ burchik:  ага, давай помедитируем тогда в отдельном месте.
+cd отдельное место
+git checkout git@github.com:larin/librusec.git <git://github.com/larin/librusec.git>
+а, не
+git clone git@github.com:larin/librusec.git
+оно создаст каталог librusec
+ я:  [root@lib otdelnoe_mesto]# git clone git@github.com:larin/librusec.git
+Initialized empty Git repository in /www/modules/librusec/otdelnoe_mesto/librusec/.git/
+remote: Counting objects: 74, done.
+remote: Compressing objects: 100% (74/74), done.
+remote: Total 74 (delta 37), reused 0 (delta 0)
+Receiving objects: 100% (74/74), 126.17 KiB | 96 KiB/s, done.
+Resolving deltas: 100% (37/37), done.
+[root@lib otdelnoe_mesto]#
+ burchik:  ага. теперь cd librusec
+git remote add lankier git://github.com/lankier/librusec.git
+git pull lankier
+ я:  [root@lib librusec]# git pull lankier
+
+remote: Counting objects: 50, done.
+remote: Compressing objects: 100% (40/40), done.
+remote: Total 40 (delta 30), reused 0 (delta 0)
+Unpacking objects: 100% (40/40), done.
+From git://github.com/lankier/librusec
+* [new branch]      master     -> lankier/master
+You asked me to pull without telling me which branch you
+want to merge with, and 'branch.master.merge' in
+your configuration file does not tell me either.  Please
+name which branch you want to merge on the command line and
+try again (e.g. 'git pull <repository> <refspec>').
+See git-pull(1) for details on the refspec.
+
+If you often merge with the same branch, you may want to
+configure the following variables in your configuration
+file:
+
+   branch.master.remote = <nickname>
+   branch.master.merge = <remote-ref>
+   remote.<nickname>.url = <url>
+   remote.<nickname>.fetch = <refspec>
+
+See git-config(1) for details.
+[root@lib librusec]#
+ burchik:  ага. git pull lankier master
+ я:  [root@lib librusec]# git pull lankier master
+[root@lib librusec]#
+молчит
+ burchik:  а какая версия git?
+git --version
+ я:  git version 1.5.4.5
+ burchik:  должен сказать что-то типа:
+buriy@bur-mac:/Projects/php/librusec-upstream$ git pull lankier master
+From git://github.com/lankier/librusec
+* branch            master     -> FETCH_HEAD
+Already up-to-date.
+но для 1.5 это наверное нормально, что молчит
+у меня git version 1.6.3.1
+ я:  [root@lib librusec]# git pull lankier master
+Already up-to-date.
+ burchik:  ок
+вот теперь cp рабочая копия/* .
+ Отправлено в 14:10, четверг
+ burchik:  и выполнив git diff у нас получится список текущих изменений. собственно, можно переносить обратно.
+ я:  git diff
+куда его?
+ burchik:  в отдельном месте погляди, что выдаёт после cp
+ я:  как его в базу?
+ burchik:  просто погляди пока
+ я:  куча изменений
+ burchik:  прям вообще куча? страницы 2-3 должно быть
+ я:  ну да
+ burchik:  buriy@bur-mac:/Projects/php/librusec-upstream$ git status
+# On branch lankier
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#   (use "git checkout -- <file>..." to discard changes in working directory)
+#
+#modified:   AJAX.php
+#modified:   author.inc
+#modified:   book.inc
+#modified:   check.inc
+#modified:   librusec.js
+#modified:   tools.inc
+у меня что-то такое
+во, теперь убьём каталог .git в рабочей версии, и скопируем туда каталог .git из отдельного места.
+ я:  скопировал
+ burchik:  всё, переходим в рабочую версию, и после этого будем делать поочерёдно git status, git diff файл, git commit файл, описывать смысл изменения.
+можно много файлов сразу
+ я:  [root@lib librusec]# git status
+# On branch master
+# Changed but not updated:
+#   (use "git add <file>..." to update what will be committed)
+#
+#       modified:   author.inc
+#       modified:   book.css
+#       modified:   book.inc
+#       modified:   check.inc
+#       modified:   librusec.inc
+#       modified:   librusec.module
+#       modified:   parser.inc
+#       modified:   stat.inc
+#       modified:   tools.inc
+#
+# Untracked files:
+#   (use "git add <file>..." to include in what will be committed)
+#
+#       otdelnoe_mesto/
+no changes added to commit (use "git add" and/or "git commit -a")
+ burchik:  убедись, что у тебя правильное имя
+ага.
+ Отправлено в 14:15, четверг
+ burchik:  git config --list
+чтобы поглядеть настройки, возможно, нужно поменять user.name и user.email
+у меня:
+buriy@bur-mac:/Projects/php/librusec-upstream$ git config --list
+user.name=Yuri Baburov
+user.email=burchik@gmail.com
+...
+ я:  [root@lib librusec]# git config --list
+core.repositoryformatversion=0
+core.filemode=true
+core.bare=false
+core.logallrefupdates=true
+remote.origin.url=git@github.com:larin/librusec.git
+remote.origin.fetch=+refs/heads/*:refs/remotes/origin/*
+branch.master.remote=origin
+branch.master.merge=refs/heads/master
+ Отправлено в 14:18, четверг
+ burchik:  git config --add user.name "Name Lastname"
+git config --add user.email <http://user.name/> "wanted-email@in-commits"
+чтобы твои коммиты подписывать.
+ну и собсно git commit на файлы после этого с описанием изменений.
+нам их потом читать :)
+ я:  bash: http://user.name/: No such file or directory
+ burchik:  ыы)
+она у меня или у тебя точку в http:// преобразовала
+git config --add user.name "Name Lastname"
+git config --add user_._name "Name Lastname"
+ну, думаю, понял смысл)
+ Отправлено в 14:22, четверг
+ burchik:  после этого в git config --list оно отобразится. всё, как изменения закоммитишь свои, делаешь git push origin master
+ я:  сделал
+ burchik:  и после этого видишь изменения на http://github.com/larin/librusec/tree/master
+а коммиты в http://github.com/larin/librusec/commits/master
+ Отправлено в 14:25, четверг
+ burchik:  че-та оно как-то не записало изменения lankier за ним...
+ я:  придётся ему повторить видимо
+ burchik:  ладно, следующие будут нормально
+ Отправлено в 14:28, четверг
+ burchik:  щас попробуем на soshial и мне потренироваться писать коммиты и обновляться с других людей) это может быть непросто) заодно и инструкцию напишем.
+ 
