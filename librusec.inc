@@ -16,23 +16,28 @@ class DB {
 
 
 Global $LoadAvg;
-// Относительный уровень нагрузки. до 1 - сервер свободен, 1-2 - загружен, больше 2 - сильно загружен.
+// Относительный уровень нагрузки: до 1 - сервер свободен, 1-2 - загружен, больше 2 - сильно загружен.
 function LA() {
   Global $LoadAvg;
   if ($LoadAvg > 0) return $LoadAvg;
   $fh = @fopen("/proc/loadavg", 'r');
   if(!$fh) return 1; // non-linux fix
-  $Data = fread($fh, 55);
-  fclose($fh);
-  list ($la1) = split(' ', $Data);
-  $fh = fopen("/www/la.sql", 'r');
-  $Data = fread($fh, 55);
-  fclose($fh);
-  list ($la2) = split(' ', $Data);
-  $LoadAvg = max($la1, $la2)/3;
-  return $LoadAvg; 
+  if(file_exists("/www/la.sql")) // проверка на существование файла la.sql: если нагрузка на сайт очень мала, то эта функция особо и не нужна. =)
+  {
+    $Data = fread($fh, 55);
+    fclose($fh);
+    list ($la1) = split(' ', $Data);
+    $fh = fopen("/www/la.sql", 'r');
+    $Data = fread($fh, 55);
+    fclose($fh);
+    list ($la2) = split(' ', $Data);
+    $LoadAvg = max($la1, $la2)/3;
+    return $LoadAvg; 
+  }
+  else return 0.5;
 }
 
+// выдаёт, новый пользователь или давно зарегистрировался (сейчас 2 дня)
 function IsNewUser() {
   Global $user; 
   if (!$user->uid) return 1;
@@ -40,7 +45,8 @@ function IsNewUser() {
   return $tm < 2*24*60*60;
 }
 
-function BPP($q = 0) { // books por page
+// книг на странице (см. /admin/settings/librusec)
+function BPP($q = 0) {
   Global $sa;
   if ($q || $_GET['sa']) $sa = 1;
   $r = $sa ? variable_get('librusec_PPa', libPPa) : variable_get('librusec_PP', libPP);
@@ -78,9 +84,6 @@ $ShowEN = $user->uid ? 1 : variable_get('librusec_ShowEN', '');
 $ButtonStyle = "class=button";
 $debug = 0;
 
-// что это за хрень на польском? ;)
-# Z carskiej imperii
-# Podania i legendy polskie, ruskie i litewskie
 
 // функция, осуществляющая романизацию строки.
 // большая просьба отрыть где-нибудь нормальный код, учитывающий все символы.
@@ -142,7 +145,7 @@ function Sel($st) {
 }
 
 function dbf ($s) { 
-  return db_fetch_object($s); 
+  return db_fetch_object($s);
 }
 
 function pgq($query, $t) {
@@ -653,6 +656,7 @@ function avl($a, $t=' ', $o='') {
   return "<a href=/a/$a>$an</a>$cnt"; 
 }
 
+// выдаёт название книги (с ссылкой) на BookId
 function bl($b) {  
   $tit = S("Title, Title1 FROM libbook WHERE BookId = $b"); 
   $t = $tit->Title;
@@ -660,13 +664,13 @@ function bl($b) {
   return "<a href=/b/$b>$t</a>"; 
 }
 
-function avl1($a) {  // Фамилия, имя, отчество.
+// выдаёт фамилию, имя и отчество автора (с ссылкой)
+function avl1($a) {
   $an = AvtorName($a, ' ', 1);
   return "<a href=/a/$a>$an</a> "; 
 }
 
 //формочки разнообразные
-
 function SelectSequence($proc, $skip='', $se='') {
   return "<p>
   <form method=post action=/tools/select/sequence>
@@ -1102,6 +1106,7 @@ function MakeZipFile($b, $dtp) {
   return $zip;
 }  
 
+// делает строчку WHERE, объединяя все версии книги
 function libWST($b, $reset = 0) {
   if (!$b) return '';
   $cid = "wst".$b;

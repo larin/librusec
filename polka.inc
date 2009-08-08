@@ -67,6 +67,7 @@ function polkaul($u) {
   return bwlist_icons($u)."<b><a href=/polka/show/$u>".Sel("name FROM users WHERE uid = '$u'")."</a></b>";
 }
 
+// функция, отображающая один отзыв
 function libpline($a1, $u='', $rss=0) {
   if (!bwlist_see($a1->UserId)) return '';
   Global $user, $host;
@@ -75,6 +76,16 @@ function libpline($a1, $u='', $rss=0) {
   $a = Sel("AvtorId FROM libavtor WHERE BookId = %d", $b);
   $an = $a ? Sel("LastName FROM libavtorname WHERE AvtorId = %d", $a) : '';
   $t = stripslashes($a1->Text);
+
+  $tm_stamp = Sel("Time FROM libpolka WHERE UserId = %d AND BookId = %d",$a1->UserId,$b); // время добавления отзыва по UTC
+  if ($user->uid)
+  {
+    $tmz_user = Sel("timezone FROM users WHERE uid = %d", $user->uid); // информация о часовом поясе пользователя, просматривающего страницу
+    $tmz_loc = date(Z); // смещение часового пояса сервера в секундах
+    $tm = date('H:i / d-m-Y',strtotime($tm_stamp.'-'.$tmz_loc.' seconds '.$tmz_user.' seconds')); // время добавления отзыва вычитаем локальное смещение сервера и добавляем смещение юзера, просматривающего эту страницу
+  }
+  else {$tm = date('H:i (P) / d-m-Y',strtotime($tm_stamp));}
+
   if ($rss) {
     $h = "http://$host";
     $username = Sel("name FROM users WHERE uid = %d", $a1->UserId);
@@ -89,8 +100,8 @@ function libpline($a1, $u='', $rss=0) {
     $g .= "<a name=$a1->GenreCode><a href=/g/$a1->GenreCode>$a1->GenreDesc</a>";
   }  
   if ($g) $g = " ($g)";
-  return "$username <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$b\">$book</a>$g<br>$t<hr>\n";
-}  
+  return "$username <a href=\"$h/a/$a\">$an</a>: <a href=\"$h/b/$b\">$book</a>$g в $tm<br>$t<hr>\n";
+}
 
 function libPolkaShow($u) {
   Global $user, $rates;

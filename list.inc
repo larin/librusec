@@ -1,4 +1,4 @@
-<?
+<?php
 include_once drupal_get_path('module', 'librusec') .'/librusec.inc';
 
 function libLetter($buk) {

@@ -311,7 +311,7 @@ function libStat($f='', $f2 = '') {
           $d =  "Добавил$A книгу ".($bi?bl($bi):' - безуспешно');
         }
         $SQL = preg_replace('/[\'\"]/', '', $a1->ActionSQL);
-        $tm =  preg_replace('/ /', '&nbsp;', $a1->Time);
+        $tm = preg_replace('/ /', '&nbsp;', $a1->Time);
         $r .= "<td>$tm<td>$d<td><a href=\"javascript:alert('$SQL')\">SQL</a>";
       }
       $r .= "</table>";

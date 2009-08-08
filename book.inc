@@ -223,7 +223,7 @@ function AdRow($b) {
 function printallann($b) {
   Global $user; $u = $user->uid;
   $wst = libWST($b);
-  $sth = SELECT ("* FROM libpolka WHERE $wst AND UserId <> '$u' AND text <> '' AND Flag <> 'h' ORDER BY ID DESC");
+  $sth = SELECT ("* FROM libpolka WHERE $wst AND text <> '' AND Flag <> 'h' ORDER BY ID DESC"); // "* FROM libpolka WHERE $wst AND UserId <> '$u' AND text <> '' AND Flag <> 'h' ORDER BY ID DESC"
   $r = '';
   while ($a1 = dbf($sth)) $r .= libpline($a1, 1);
   $r .= "<div id='newann' class=' withright clear-block'><table width=100%><tr><td width=100%><h2>Впечатления о книге: &nbsp; ".DoLibRow($b,'rateonly')."</h2>\n";
@@ -332,7 +332,7 @@ function libBookEdit($b) {
       $r .= "<form action=/b/$b/addseq><input name=sern value=\"$sern\" size=1><input name=ser value=\"$serval\">
              <input $ButtonStyle type=submit value='Добавить сериал'></form>"; 
     }
-    $r .= "<b>Язык:</b> <input size=2 id=lang$b onChange=setlang($b) value='$a1->Lang'>";
+    $r .= "<b>Язык:</b> <input size=2 id=lang$b onChange=setlang($b) value='$a1->Lang'> (<a href=/langcodes>список яз. кодов</a>)";
     $r .= "<br><b>Год издания:</b> <input size=3 id=year$b onChange=setyear($b) value='$a1->Year'>";
     $r .= "<br>Аннотация ";
     $ann = ReadAnnotation($b, $nid);
