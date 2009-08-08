@@ -511,7 +511,7 @@ function DoLibRow($b, $style='') {
     else $r .= "<img src=/img/znak.gif border=0>"; 
   }
 
-  $dwncnt = $a1->N;
+  $dwncnt = $user->uid ? $a1->N : '';
   if ($user->uid && strstr($style,'rate')) {
     $rate = libGetRate($b);
     $rt = "<select onchange=setrate($b) id=rate$b>";

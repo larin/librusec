@@ -101,7 +101,7 @@ function libStat($f='', $f2 = '') {
       foreach($READED as $b=>$n) {
         if ($i++>100) break;
         $av = libAvtorsNames($b);
-        $r .= "<li>$n: $av - ".bl($b);
+        $r .= "<li>$av - ".bl($b);
       }
       $r = libListBlackGenre()."<ul>$r</ul>";
     break;
@@ -112,7 +112,7 @@ function libStat($f='', $f2 = '') {
       $sth = SELECT("SUM(1) as Num, liblog.BookId as BookId FROM `liblog` JOIN libbook USING (BookId) $BGLIST liblog.Time > SUBDATE(NOW( ), 1) GROUP BY 2 ORDER BY 1 DESC LIMIT 100");
       while ($a1=dbf($sth)) {  
         $av = libAvtorsNames($a1->BookId);
-        $r .= "<li>$a1->Num: $av - ".bl($a1->BookId);
+        $r .= "<li>$av - ".bl($a1->BookId);
       }
       $r = libListBlackGenre()."<ul>$r</ul>";
     break;
@@ -129,7 +129,7 @@ function libStat($f='', $f2 = '') {
       $sth = pager_query($q, 100, 0, $count);
       while ($a1=dbf($sth)) {  
         $av = libAvtorsNames($a1->BookId);
-        $r .= "<li>$a1->N: $av - ".bl($a1->BookId);
+        $r .= "<li>$av - ".bl($a1->BookId);
       }
       $r = libListBlackGenre()."<ul>$r</ul>";
     break;
@@ -215,7 +215,7 @@ function libStat($f='', $f2 = '') {
 //     $n = Sel ("count (DISTINCT AvtorId) FROM liblog JOIN libavtor USING (BookId)") - 2;
        $n = 20000;
        $sth = pgq ("SELECT SUM(N) as N, AvtorId FROM `libbook` JOIN libavtor USING (BookId) GROUP BY AvtorId ORDER BY 1 DESC", $n);
-       while ($a1=dbf($sth)) $r .=  "<li>$a1->N: ".avl($a1->AvtorId);
+       while ($a1=dbf($sth)) $r .=  "<li>".avl($a1->AvtorId);
        $r .= "</ul>";
     break;
 
