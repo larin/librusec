@@ -3,13 +3,13 @@ include_once drupal_get_path('module', 'librusec') .'/librusec.inc';
 
 function libGenre() {
   Global $user, $ShowEN;  
-  if (!$ShowEN) $asql = "AND Lang='ru'";
+  if (!$ShowEN) $asql = "AND Lang='ru' AND libbook.Blocked = '' ";
   $g = arg(1);
   if (!$g || $g == 'all' || $g == 'ge') { 
     drupal_set_title("Список жанров");
     Global $sa, $rd; AnnChkbox();
     $gg = libListBlackGG();
-    $CacheFile = 'cache/g/all'.($asql?'.anonim':'').".html";
+    $CacheFile = 'cache/g/all'.($asql ? '.anonim':'').".html";
     if ($fh = libOpenCacheFile($CacheFile, 24*3600)) {
       $sth = SELECT ("GenreId, GenreCode, GenreDesc, GenreMeta FROM libgenrelist ORDER BY 4,3");
       while ($g1 = dbf ($sth)) {
@@ -87,7 +87,7 @@ function libGenre() {
     $joinseq = "LEFT JOIN libseq USING(BookId)";
     $order = "LastName, FirstName, MiddleName, SeqId, SeqNumb, Title";
   }  
-  $CacheFile = "cache/g/$g1->GenreCode$oo$anonim.html";
+  $CacheFile = "cache/g/$g1->GenreCode$oo".($asql ? '.anonim':'').".html";
   if ($fh = libOpenCacheFile($CacheFile, 24*3600)) {
     $sth = SELECT("libbook.BookId AS b, Time, Title, Title1, libavtor.AvtorId AS a FROM libbook JOIN libgenre USING(BookId) JOIN libavtor USING(BookId) JOIN libavtorname USING(AvtorId) $joinseq WHERE NOT (1&Deleted) AND GenreId = $g1->GenreId $asql ORDER BY $order");
     while ($a1 = dbf($sth)) { 

@@ -36,7 +36,7 @@ function libNew() {
   }
   drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="Новые книги на Либрусеке RSS" href="/new/rss'.$rssmod.'" />');
   Global $sa, $rd, $user;
-  if (!$user->uid) $asql = "AND Lang = 'ru'";
+  if (!$user->uid) $asql = "AND Lang = 'ru' AND NOT Blocked";
   $r = "<form action='/new'><a href='/new/rss$rssmod' class='feed-icon'><img src='/misc/feed.png' alt=RSS title='RSS' width='16' height='16'></a> &nbsp; <b><a href='http://syndicated.livejournal.com/librusec/' style='color:black'>ЖЖ</a></b> &nbsp; ";
   $sth = SELECT("DISTINCT Lang FROM libbook WHERE Lang <> '' AND NOT (Deleted&1) ".($t ? " AND FileType = '$t'" : ""));
   while ($v = db_result($sth)) $sellang .= "<option value='$v'".($v==$l?" selected":"").">$v";
@@ -58,11 +58,11 @@ function libNew() {
     $nn = 100000;
     fwrite($fh, downloadall('up', $nn, $t).'<br>'); 
     if ($user->uid && $rd) {
-      $joinreaded = "LEFT JOIN libreaded ON(UserId =$user->uid AND libreaded.BookId = libbook.BookId)";
+      $joinreaded = "LEFT JOIN libreaded ON(UserId = $user->uid AND libreaded.BookId = libbook.BookId)";
       $wherereaded = "AND libreaded.UserId IS NULL";
     }
-    $fields = "Lang, N, FileType, FileSize, Deleted, Title, Title1";
-    $sth = pgq("SELECT libbook.BookId AS BookId, $fields, libbook.Time AS Time FROM libbook $joinreaded $BGLIST NOT (Deleted&1) $wherereaded $lsql $asql $GROUPBY ORDER BY BookId DESC", $nn);
+    $fields = "Lang, N, FileType, FileSize, Deleted, Title, Title1, libbook.Time AS Time, libbook.Blocked AS Blocked";
+    $sth = pgq("SELECT libbook.BookId AS BookId, $fields FROM libbook $joinreaded $BGLIST NOT (Deleted&1) $wherereaded $lsql $asql $GROUPBY ORDER BY BookId DESC", $nn);
     while ($a1 = dbf($sth)) { 
       if ($tm = ptm($a1->Time))
         fwrite($fh, "<br><h4>$tm</h4>\n");
@@ -138,7 +138,6 @@ else $sa = 'on';
   $lastSecId = $se;
   $r .= downloadall('up', $n);
   $r .= "<br>";
-  $fields = "Lang, N, FileType, FileSize, Deleted, Title, Title1";
   $sth = pgq ("SELECT $S ORDER BY $order", $n); 
   while ($a1=dbf($sth)) $r .= DoLibRow($a1->BookId, 'checkbox sequence annotation seq');
   $r .= downloadall('dn', $n, 0);

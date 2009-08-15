@@ -34,6 +34,7 @@ function libMass() {
         }   
         if ($_GET['downloadall']) {
           if (!$a1 = S("* FROM libbook WHERE BookId = '$b'")) continue;
+          if ($a1->Blocked && !user_access('библиотекарь')) continue;
           if ($a1->FileType == 'fb2') {
             if ($dtp == 'pdf') {
               $ii++;

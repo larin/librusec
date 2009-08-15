@@ -15,10 +15,11 @@ function p($t) {
 }
 
 function libAJAXlist() {
-  Global $sa, $rd;
+  Global $sa, $rd, $user;
   $sa = $_GET['sa'];
   $rd = $_GET['rd'];
   $W = 'WHERE NOT (Deleted&1)';
+  if (!$user->uid) $W .= ' AND NOT libbook.Blocked';
   $tm = $_GET['tm'];//Time
 
   if ($t = p('t')) {$t=str_replace('*','%',$t); $W .= " AND Title LIKE '$t%'";}

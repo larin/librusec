@@ -69,6 +69,7 @@ function libAvtor() {
     $uname = Sel ("name FROM users WHERE uid = $uid");
     $r .= "Известен в библиотеке как <a href=/user/$uid>$uname</a><br>";
   }  
+  if ($a1->Blocked && user_access('библиотекарь')) $r .= "(Заблокирован от добавления книг небиблиотекарями)<br>";
   if (!$_GET['page'] && !$lang) {
     $ann = ReadAvtorPage($a, $nid);
     if (!$nid) $r .= "<a href=/node/add/adesc/$a>(добавить описание автора)</a>\n";
@@ -126,9 +127,9 @@ else $sa = 'on';
     $joinreaded = "LEFT JOIN libreaded ON(UserId =$user->uid AND libreaded.BookId = libbook.BookId)";
     $wherereaded = "AND libreaded.UserId IS NULL";
   }
-  $fields = "libbook.BookId AS BookId, Lang, N, FileType, FileSize, Deleted, Title, Title1";
-  if ($c3) $fields .= ', libbook.Time AS Time';
+  $fields = "libbook.BookId AS BookId, Lang, N, FileType, FileSize, Deleted, Title, Title1, libbook.Blocked AS Blocked, libbook.Time AS Time";
   if ($joinseq) $seqid = ', SeqId, IF(Level<100, SeqName, NULL) AS SeqName, IF(Level<100, SeqNumb, NULL) as SeqNumb';
+  if (!$user->uid) $lsql .= " AND NOT libbook.Blocked";
   if ($g) {
     $sth = SELECT ("GenreId, $fields $seqid
 FROM libavtor JOIN libgenre USING (BookId) JOIN libbook USING (BookId) $joinseq $joinreaded
@@ -336,6 +337,8 @@ function libUpload() {
 function libAvtorAddBook($a) {
   Global $user;
   if (!libcanedit()) return NetPrav;
+  if ($a && !user_access('библиотекарь') && Sel('Blocked FROM libavtorname WHERE AvtorId = %d', $a)) 
+    return 'Книги автора '.avl($a).' могут добавлять только библиотекари. Извините.';
   $r = "Добавление книги:";
   if ($_FILES['book']['tmp_name']) {
     $fname = trim($_FILES['book']['name']);
@@ -536,7 +539,7 @@ function libAvtorSearchd($a) {
   return $r . "</ol><br><a href=/a/$a/edit>Продолжить обработку</a> автора ".avl($a);
 }
 
-function AddFileToLibrusec($f, $ext, $a) {
+function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   include_once drupal_get_path('module', 'librusec').'/validator.inc';
   global $user; 
   if (!file_exists($f)) return "<p>Не найден файл $f. Беда...";
@@ -578,6 +581,10 @@ function AddFileToLibrusec($f, $ext, $a) {
       exit;
     }
     $genre = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/GENRE'];  
+  } else {
+    if ($a1 = S("* FROM bookwarrior.updated WHERE MD5 = '%s'", md5_file($f)))   
+      return "Книга уже присутствует в библиотеке Genesis: <a href='http://gen.lib.rus.ec/get?md5=$a1->MD5'>$a1->Title$a1->VolumeInfo</a> ($a1->Author) ";
+    if (SuperUser()) {print "$f<pre>"; print_r($a1); print md5_file($f);exit;}
   }
   if (!$genre) $genre = strtolower($_POST['genre']);
   if (!$genre) return "Жанр не найден.";
@@ -609,6 +616,7 @@ function AddFileToLibrusec($f, $ext, $a) {
   $fs = filesize($f); 
   if ($fs < 4999 && !user_access('библиотекарь')) return "Файл не найден или очень уж мал. Стихи и прочую мелочь просьба собирать в сборники килобайт хотя бы по сто.";
   if ($PD->AvtorIds[0]) $a = $PD->AvtorIds[0]; else $PD->AvtorIds[0] = $a;
+
   $r .= " Наменование: $title<br>";
 //Попытаемся выловить дубли. Может, получится. Будем надеяться. Дубли - это наша беда. Да.
   $t = trim(preg_replace('/\(.+\d+\s*\)/','',$title));
@@ -626,6 +634,8 @@ function AddFileToLibrusec($f, $ext, $a) {
     }
   } 
   foreach($PD->AvtorIds as $aid) {
+    if (!user_access('библиотекарь') && Sel('Blocked FROM libavtorname WHERE AvtorId = %d', $aid))
+      return 'Книги автора '.avl($a).' могут добавлять только библиотекари. Извините.';
     if ($BookId = Sel ("libbook.BookId FROM libbook JOIN libavtor USING (BookId) WHERE Title=\"$t\" AND AvtorId = '$aid' AND NOT (1&Deleted)")) break;   
     $ln = Sel ("LastName FROM libavtorname WHERE AvtorId = %d", $aid);
     $r .= "Проверяем $ln<br>";
@@ -640,7 +650,9 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
   if ($BookId) {
     if ($fs == Sel("FileSize FROM libbook WHERE BookId = $BookId")) {
       unlink ($f);
-      return "<br>Книга уже есть в библиотеке - ".bl($BookId); 
+      if ($blocka <> '') // книга добавлена роботом Литрес
+        libBlockBook($BookId, $blocka, $a);
+      return "<br>Книга уже есть в библиотеке - ".bl($BookId)."'$blocka'"; 
     }
   }    
 // Не дубль, во всяком случае не такой как есть. Добавляем по-взрослому.
@@ -696,6 +708,9 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
     Insert (libfilename, "BookId, FileName", "$b, \"$nn\"");
   }  
   $r .= "<p><a href=/b/$b/edit target=_blank>Книга добавлена</a><br>";
+
+  if ($blocka <> '')  // книга добавлена роботом Литрес
+      libBlockBook($b, $blocka, $PD->AvtorIds[0]);
   foreach ($GenreIds as $gid) Insert ('libgenre', 'BookId, GenreId', "$b, $gid"); 
   if ($PD->AvtorIds) foreach ($PD->AvtorIds as $aid) Insert ('libavtor', 'BookId, AvtorId', "$b, $aid"); 
   if ($PD->TranslatorIds) foreach ($PD->TranslatorIds as $aid) Insert ('libtranslator', 'BookId, TranslatorId', "$b, $aid"); 
@@ -803,4 +818,9 @@ function libAvtorDeleteAlias($a) {
   lgo("/a/$a/edit");
 }
 
-																															
+function libBlockBook($b, $blocka, $a) { // блокировка книги, добавленной Литрес
+  Update(libbook, 'Blocked = 1', "BookId = $b");    
+  if ($blocka == 1 && $a > 0) Update(libavtorname, 'Blocked = 1', "AvtorId = $a");    
+  for ($sth = SELECT("BadId FROM libjoinedbooks JOIN libbook ON(BookId=BadId) WHERE GoodId = $b AND NOT Blocked"); $a1 = dbf($sth);)
+    libBlockBook($a1->BadId, 0, 0);
+}																															

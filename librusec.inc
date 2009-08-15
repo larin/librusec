@@ -2,7 +2,6 @@
 Global $rates;
 $rates = array ('  ', 'нечитаемо', 'плохо', 'неплохо', 'хорошо', 'отлично!');
 module_load_include('inc', 'librusec', 'parser');
-
 class DB {
   private $dbname, $idname;
   function DB($dbname = 'libbook') {
@@ -13,7 +12,6 @@ class DB {
     return Sel("$m FROM $this->dbname WHERE $this->idname = $a[0]");
   }
 }
-
 
 Global $LoadAvg;
 // Относительный уровень нагрузки: до 1 - сервер свободен, 1-2 - загружен, больше 2 - сильно загружен.
@@ -447,17 +445,20 @@ function DoLibRow($b, $style='') {
   }  
   if (!$a1 || !$ShowEN && $a1->Lang != 'ru') return ''; 
   $edit = strstr($style,'edit') && !variable_get('librusec_Mirror', '0');
-  
-  if ($style != 'rateonly' && !libListBlackGG() && (!$user->uid || !strstr($style,'seltype'))) {
-    $cid = 'LibRow'.md5($b.$style.$sa).$ShowEN;
+  if ($a1->Blocked) {
+    if (libBookDays($a1) > 31) {
+      $a1->Blocked = '';
+      Update(libbook, "Blocked = ''", "BookId = $b");
+    } elseif (user_access('библиотекарь')) {
+      $a1->Blocked = '';
+    } 
+    if ($a1->Blocked && !$user->uid) return '';
+  }  
+  if ($style != 'rateonly' && !libListBlackGG() && (!$user->uid || !strstr($style,'seltype')) && !user_access('библиотекарь')) {
+    $cid = 'LibRow'.md5($b.$style.$sa.$ShowEN).$a1->Blocked;
     if ($r = libcg($cid)) 
       apc_inc('Dolibrow Hits');
   }    
-/*      if ($user->uid && strstr($style,'rate')) 
-        return str_replace("<place for rate>", DoLibRow($b, 'rateonly'), $r);
-      else   
-        return $r;
-*/
 
   if (strstr($style,'genre')) {
     $g = DoGenreRow($b, $a1->g);
@@ -573,13 +574,14 @@ function DoLibRow($b, $style='') {
     $r .= " - $sec <a href=/b/$b>$title $secname <span style=size>$size</span>";      
   }
 
-  if ($a1->Deleted != 7) {
+  if ($a1->Deleted != 7 ) {
     if ($tp == 'fb2') {
       if (!strstr($style,'noread')) 
-        $r .= " &nbsp; <a href=/b/$b/read>(читать)</a> &nbsp; <a href=/b/$b/download>(скачать)</a> ";
-      else   
+        $r .= " &nbsp; <a href=/b/$b/read>(читать)</a> &nbsp; ";
+      if (!$a1->Blocked) {
         $r .= " <a href=/b/$b/download>(скачать)</a> ";
-      if (strstr($style,'seltype')) $r .= ' '.libSelectFileType($b);     
+        if (strstr($style,'seltype')) $r .= ' '.libSelectFileType($b);     
+      }  
     } else {
       $r .= " <a href=/b/$b/download>(скачать $tp)</a> ";
     }  
@@ -1044,7 +1046,7 @@ function genres($sid) {
 
 function BlockUserNah() {
   Global $user;
-  if (user_access('библиотекарь')) return;
+  if (!user_access('библиотекарь')) return;
   if (Sel ("uid FROM users_roles WHERE uid = $user->uid AND rid=4")) return;
   Insert('users_roles', 'uid, rid', "$user->uid, 4");
 }
@@ -1162,4 +1164,34 @@ function LibListGenres($b) {
     $r .= "$a1->GenreDesc <a href=/g/$a1->GenreId/hide>(скрыть)</a> ";
   } 
   return $r ? "($r)" : '';
+}
+
+function libCheckLitres() {
+module_load_include('inc', 'librusec', 'author');
+  $in = '/home/litres/litres_uploads/';
+  $ou = '/home/litres/done/';
+  $tmp = '/home/litres/tmp/';
+  foreach (glob($in.'*.descr') as $filedesc) {
+    $zip = substr($filedesc, 0, strlen($filedesc)-5).'fb2.zip';
+    $desc1 = $ou.substr($filedesc, strlen($in));
+    $book1 = $ou.substr($zip, strlen($in));
+    if (file_exists($desc1) && file_exists($book1)) continue;
+    system("unzip -d $tmp '$zip'");
+    foreach (glob($tmp.'*.fb2') as $fb2) {
+      $desc = file($filedesc);  
+      $blocka = $desc[2];
+      $r .= AddFileToLibrusec($fb2, 'fb2', -1, $blocka);    
+    }      
+    copy($filedesc, $desc1);
+    copy($zip, $book1);
+  }
+  print $r;
+  fwrite(fopen('/l/litres.html', 'a'), $r);
+  exit;
+} 
+
+function libBookDays($a1) {
+  $time = Sel("MIN(Time) FROM libbook WHERE ".libWST($a1->BookId));
+  preg_match('/(\d\d\d\d)-(\d\d)-(\d\d)/', $time, $m);
+  return (int)((time() - mktime(0, 0, 0, $m[2], $m[3], $m[1]))/3600/24)+1;
 }

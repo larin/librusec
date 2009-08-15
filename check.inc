@@ -5,6 +5,8 @@ Global $path, $PP;
 
 function libCheck() {
   switch (arg(1)) { 
+    case libCheckLitres: 
+       return libCheckLitres();
     case massfail:
       $fh = fopen('massfail', 'r');
       while ($s = fgets($fh)) {
@@ -156,7 +158,6 @@ break;
       print "<pre>"; print_r ($_SERVER); print "</pre>";
       phpinfo(); 
     exit;
-
     case setdocauthor:
       $sth = SELECT("* FROM libbook WHERE FileAuthor = '' AND FileType = 'fb2' LIMIT 12345");
       while ($a1=dbf($sth)) {

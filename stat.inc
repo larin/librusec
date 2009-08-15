@@ -34,7 +34,8 @@ function libStat($f='', $f2 = '') {
     'akt' => 'Активные', 
     'bibl' => 'Библиотекари', 
     'block' => 'Враги', 
-    'q' => 'Оценки файлов'
+    'q' => 'Оценки файлов',
+    'litres' => 'Книги заблокированные Литрес'
   );
   if ($admin) {
     $head .= "<br><h4>Библиотекарское</h4>";
@@ -62,8 +63,11 @@ function libStat($f='', $f2 = '') {
   );
   set_title($titles[$f]);
 // статистика хранится в кэше, пересчитывается раз в 170 минут, если позволит загрузка сервера.
-  if (($f == 'w' || $f == 'b' || $f == '24' || $f == 'r') && ($gg = libListBlackGG())) 
-    $BGLIST = "JOIN libgenre USING(BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId)";
+  if ($f == 'w' || $f == 'b' || $f == '24' || $f == 'r') 
+    if ($gg = libListBlackGG()) 
+      $BGLIST = "JOIN libgenre USING(BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId)";
+    elseif(!$user->uid)  
+      $BGLIST = "WHERE NOT Blocked";
   if (!$admin_actions[$f] && !$admin && $f != 'my') {
     $cid = "libstat-$f-$f2-".$_GET['page'];
     if ($BGLIST) $cid .= "g$gg";
@@ -207,6 +211,12 @@ function libStat($f='', $f2 = '') {
       $tp = arg(2);  
       $st = pgq("SELECT BookId FROM libbook WHERE FileType = '$tp' AND NOT (Deleted&1)", 
                  Sel ("count(BookId) FROM libbook WHERE FileType = '$tp' AND NOT (Deleted&1)"));
+      while ($a1=dbf($st)) $r .= DoLibRow($a1->BookId);
+    break;  
+
+    case 'litres':
+      $st = pgq("SELECT BookId FROM libbook WHERE Blocked AND NOT (Deleted&1) ORDER BY BookId DESC", 
+           Sel ("count(BookId) FROM libbook WHERE Blocked AND NOT (Deleted&1)"));
       while ($a1=dbf($st)) $r .= DoLibRow($a1->BookId);
     break;  
 

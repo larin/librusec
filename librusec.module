@@ -367,6 +367,7 @@ function librusec_user($op, &$edit, &$u) {
 }
 
 function librusec_cron() {
+  if (LA() > 1) return;
   $tm = Sel("SUBDATE(NOW(), 7)");
   $sth = SELECT("CONCAT(substr(time,3,2),substr(time,6,2)) AS Mes, BookId, SUM(1) AS N FROM `liblog` WHERE Time < '%s' GROUP BY BookId", $tm);
   while ($a1 = db_fetch_object($sth)) {
@@ -376,6 +377,7 @@ function librusec_cron() {
     db_query("DELETE FROM `liblog` WHERE Time < '%s' AND BookId = %d", $tm, $a1->BookId);
   }
   db_query('DELETE FROM libtopadvert WHERE Time + 333333 < NOW()'); 
+  libCheckLitres();
 }
 
 function librusec_update($node) {
