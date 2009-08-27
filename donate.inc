@@ -70,6 +70,8 @@ function LibDonate() {
         return libdonatetable();  
       case mes:
         return libdonatepaid(arg(3));
+      case user:
+        return libdonateuser(arg(3));
       default:
         return "Непонятная метка `$act`"  ;
      }   
@@ -83,7 +85,7 @@ function LibDonate() {
   }
 //Формочка сбора денег
 
-  if (arg(2) == 'author' && ($a = arg(3))) $checked = 'checked';
+  if (arg(1) == 'author' && ($a = arg(2))) $checked = 'checked';
   $crc = md5("librusec:20:0:1a1a1a1a:shp_item=2"); 
   $t = $a ? 1 : 4;
   $sms1 = $user->uid*1000000+$a+$t*1000000000000;
@@ -362,7 +364,7 @@ function libdonatepaid($mes = '') {
     $w = "WHERE Type < 5 AND substr(time, 1, 7) = '$mes'"; 
     set_title("Платежи, полученные за $mes");
   } else {
-    set_title ("Полученные платежи");
+    set_title("Полученные платежи");
     $w = "WHERE Type < 5"; 
   }
   $sth = pgq ("SELECT *, DATE_FORMAT(Time,'%e %c') as dt FROM libdonations $w ORDER BY 1 DESC", Sel ("COUNT(*) FROM libdonations $w"));
@@ -468,4 +470,25 @@ function libDonateSMS() {
   $httpResponse.="</Response>";
   print $httpResponse;
   exit;
+}
+
+function libdonateuser($uid) {
+  Global $user; 
+  if ($uid == 'me') $uid = $user->uid;
+  $name = $uid ? Sel('name FROM users WHERE uid = %d', $uid) : 'Аноним';
+  set_title("Платежи, полученные от пользователя $name");
+  $sth = SELECT("*, DATE_FORMAT(Time,'%e %c') as dt FROM libdonations WHERE uid = %d ORDER BY 1 DESC", $uid);
+  $r .= "<table><tr><th>Дата<th>Сумма<th>Кому<th>Платёжная система";
+  while ($a1=dbf($sth)) {
+    switch ($a1->Type) {
+      case 1:$rasp=avl($a1->AvtorId); break;
+      case 2:$rasp="<a href=/polka/show/$a1->uid>распределить между прочитанными</a>";break;
+      case 3:$rasp="<a href=/donate/stat/avtors>распределить между всеми</a>";break;
+      case 4:$rasp="на Либрусек";break;
+      default: $rasp='непонятно';break;
+    }
+    $sum = $a1->Sum/100;
+    $r .= "<tr><td align=right>$a1->dt &nbsp; <td>\$$sum<td>$rasp<td>$a1->PayType";
+  }
+  return $r."</table>";
 }

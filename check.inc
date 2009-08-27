@@ -5,6 +5,55 @@ Global $path, $PP;
 
 function libCheck() {
   switch (arg(1)) { 
+   case 'md5':
+     $r = "<ol>";
+     if ($md5 = arg(2)) {
+       $sth = SELECT("* FROM `libbook` WHERE md5 = '%s'", $md5);
+       $bbb = '';
+       while ($a1 = dbf($sth)) {
+         $b = $a1->BookId;
+         $r .= "<li>".DoLibRow($a1, 'nobreak')." <a href=/b/$b/delete>(удалить)</a>";
+         if ($bbb) $r .= "<br><a href=/b/$bbb/join/$b>(объединить)</a>";
+         else $bbb = $b;
+         if ($a1->Deleted&1) {
+           $r .= " (удалена)";
+           RemoveBook($a1->BookId);
+         } 
+       }
+     } else {
+       $sth = SELECT("SUM(1) AS N, md5 FROM `libbook` GROUP BY 2 ORDER BY 1 DESC");
+       while ($a1 = dbf($sth)) {
+         if ($a1->N < 2) break;
+         $r .= "<li>$a1->N <a href=/check/md5/$a1->md5>$a1->md5</a>";
+         $sth1 = SELECT("* FROM `libbook` WHERE md5 = '%s'", $a1->md5);
+         $b1 = $b2 = '';
+         while ($a2 = dbf($sth1)) 
+           if ($a2->Deleted&1) 
+             RemoveBook($a2->BookId);
+           elseif(!$b1) $b1 = $a2->BookId;
+           else $b2 = $a2->BookId;
+         $r .= " <a href=/b/$b1/join/$b2>(объединить)</a>";
+       }
+     }
+   return $r."</ol>";
+
+   case 'procallbooks':
+     return procallbooks($qq);
+     $f = fopen("cache/batch.log",'a+');
+     fprintf($f, 'starts');
+     fclose ($f);
+     batch_set(array(
+       'title' => t('Прочёсываем'),
+       'operations' => array(array('procallbooks', array())),
+        'finished' => 'my_finished_callback',
+    'init_message' => t('Check Batch starting.'),
+    'progress_message' => t('Processed @current out of @total.'),
+    'error_message' => t('Batch 1 has encountered an error.'),
+         'file' => drupal_get_path('module', 'librusec') . '/check.inc',    
+     ));
+   batch_process();
+   return 'batched';
+
     case libCheckLitres: 
        return libCheckLitres();
     case massfail:
@@ -28,41 +77,6 @@ function libCheck() {
         }
       }
       exit;
-    case mysql:
-	echo "<center><b> Thread Cache Monitor </b></center>";
-	echo "<table>";
-	dbtuning_hit_ratio_monitor();
-	echo "</table>";
-	echo "<br /><center><b> Table Cache Monitor </b></center>";
-	echo "<table>";
-	dbtuning_table_stats();
-	echo "</table>";
-	echo "<br /><center><b> Query Cache Monitor </b></center>";
-	echo "<table>";
-	dbtuning_qcache_stats();
-	echo "</table>";
-	echo "<br /><center><b> Memory Monitor </b></center>";
-	echo "<table>";
-	dbtuning_memory_check();
-	echo "</table>";
-	echo "<br /><center><b> Select Monitor </b></center>";
-	echo "<table>";
-	dbtuning_everything_else($mysql_version);
-	echo "</table>";
-	exit;
-/*
-Make all the links dynamically generated.
-Pull version number from mysql - then put 4.1 or 5.0 in the URL
-<a href="http://dev.mysql.com/doc/refman/5.0/en/innodb-tuning.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/innodb-tuning.html</a>
--Making the buffer pool bigger can help, but do not set it equal to more than 80% of physical memory.
--Make your log files big, even as big as the buffer pool.
--Make the log buffer quite large as well (on the order of 8MB).
-<a href="http://dev.mysql.com/doc/refman/5.0/en/mysql-benchmarks.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/mysql-benchmarks.html</a>
-<a href="http://dev.mysql.com/doc/refman/5.0/en/compile-and-link-options.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/compile-and-link-options.html</a>
-<a href="http://dev.mysql.com/doc/refman/5.0/en/explain.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/explain.html</a>
-<a href="http://dev.mysql.com/doc/refman/5.0/en/slow-query-log.html" rel="nofollow">http://dev.mysql.com/doc/refman/5.0/en/slow-query-log.html</a>
-*/
-exit;    
     case createtorrent:
       print createtorrent;
       $b = (int)arg(2);
@@ -123,27 +137,9 @@ print rand(0, count($rubr));
       print_r($s);
     exit;
     
-   case SetActionBookId: return SetActionBookId();
-   case translator:
-     print '1111';
-     return find_keywords($qq);
-     $f = fopen("cache/batch.log",'a+');
-     fprintf($f, 'starts');
-     fclose ($f);
-     batch_set(array(
-       'title' => t('Прочёсываем'),
-       'operations' => array(array('find_keywords', array())),
-        'finished' => 'my_finished_callback',
-    'init_message' => t('Check Batch starting.'),
-    'progress_message' => t('Processed @current out of @total.'),
-    'error_message' => t('Batch 1 has encountered an error.'),
-         'file' => drupal_get_path('module', 'librusec') . '/check.inc',    
-     ));
-   batch_process();
-   return 'batched';
-//       return "$a - $ln $fn $mn<pre>".print_r($PD->head, 1);
+   case SetActionBookId: 
+     return SetActionBookId();
 
-break;
    case delnul:
       foreach (array(109324) as $b) {
         $r .= $b.' ';
@@ -311,65 +307,59 @@ function f3($parser, $E) {
   if ($p == 'fictionbook/description/document-info/program-used') $PP->prog .= $E;
 }
 
-function find_keywords(&$context) {
+function procallbooks(&$context) {
   $f = fopen("cache/batch.log",'a+');
   $b = $context['sandbox'];
   if (!$b) $b = 1;
-  $context['finished'] = $b/140000;
-//  $sth = SELECT("* FROM libbook WHERE FileType = 'fb2' AND BookId > $b AND NOT (Deleted&1) AND keywords = '' ORDER BY BookId LIMIT 50");
-//  $sth = SELECT("* FROM libbook WHERE FileType = 'fb2' AND BookId = 100037 ORDER BY BookId LIMIT 50");
-  $sth = SELECT("* FROM libbook LEFT JOIN libseq USING(BookId) WHERE BookId < 139999 AND FileType = 'fb2' AND ISNULL(SeqNumb) ORDER BY BookId DESC LIMIT 1200");
+  $maxb = Sel('MAX(BookId) FROM libbook');
+  $sth = SELECT("* FROM libbook WHERE md5 = '' LIMIT 1000");
   while ($a1 = dbf($sth)) {
-    print_r ($a1);
     $b = $a1->BookId;
-    fprintf($f, " $b ");
-    if ($e = parsefb2("b/$b.fb2", $b, 'head')) { fprintf($f, $e);exit;}
-    Global $PD;
-    print parsed;
-/*
-    if ($keywords = addslashes($PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/KEYWORDSss'])) {
-      db_query("Update libbook SET keywords = '%s' WHERE BookId = $b", $keywords); 
-      fprintf($f, " ($b.$keywords) ");
-      $context['results'][a]++;
-      $nid = Sel("nid FROM `libbnode` WHERE `BookId` = %d", $b);
-      if (!$nid) {
-        $node = new StdClass();
-        $node->nid = 0;
-        $node->type = 'bdesc';
-        $node->status = 1;
-        $node->title = $a1->Title; 
-        node_submit($node);
-        node_save($node);
-        if ($nid = $node->nid) Insert(libbnode, "nid, BookId", "$nid, $b");
-      } 
-      if (!$nid) continue;
-      $vid = Sel ("vid FROM node WHERE nid = $nid");
-      foreach(split(',', $keywords) as $key) {
-        $tid = Sel ("tid FROM term_data WHERE name = '%s'", $key);
-        if (!$tid) {
-          Insert (term_data, "vid, name, description", "3, '%s', ''", $key);
-          $tid = Sel ("tid FROM term_data WHERE name = '%s'", $key);
-          if (!$tid) continue;
-          Insert (term_hierarchy, 'tid,	parent', "$tid, 0");
-        }
-        if ($nid) Insert (term_node, 'nid, tid, vid', "$nid, $tid, $node->vid");
-      }
+    fprintf($f, "$b:$b->FileType ");
+    if ($a1->FileType == 'fb2') {
+      $fn = "b/$b.fb2";
+    } else {  
+      $fn = "b.usr/".Sel("FileName FROM libfilename WHERE BookId = %d", $b);
     }  
-    if ($srclang = addslashes($PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/SRC-LANG'])) 
-      db_query("Insert libsrclang (BookId, SrcLang) VALUES($b, '$%'", $srclang); 
- */
+    if (!file_exists($fn) || filesize($fn) < 2000) {
+      RemoveBook($b);
+      fprintf($f, "$b removed - file $fn not exist\n");
+      $context['message'] = "$b removed - file $fn does not exists\n";
+      $context['finished'] = 1;
+      return;
+    } else {
+      fprintf($f, "$fn found");
+    }
+    $md5 = md5_file($fn);
+    if (!$md5) {
+      fprintf($f, " - bad md5\n");
+      continue;
+    }
+    Update('libbook', "md5='%s'", 'BookId=%d', $md5, $b);
+    if ($a1->FileType != 'fb2') {
+      fprintf($f, "\n");
+      continue; // остальное только для фб2
+    }  
+    $xml = simplexml_load_file($fn);        
+    if (!$xml) { //битый xml, отмечаем в базе для отмены конверторов
+      fprintf($f, " - bad xml\n");
+      Update('libbook', "Broken=1", 'BookId=%d', $b);
+      continue;
+    }   
+    $titinfo = $xml->description->{'title-info'};
+    $srclang = $titinfo->{'src-lang'};
+    $lang = $titinfo->{'lang'};
+    if ($srclang && $lang !== $srclang) 
+        Insert(libsrclang, 'BookId, SrcLang', "%d, '%s'", $b, $srclang);  
+    if ($keywords = $titinfo->{'keywords'})     
+      Update('libbook', "keywords='%s'", 'BookId=%d', $b, $keywords);
+    unset($xml);  
     $context['message'] = $context['sandbox'] = $b + 1;
-    $context['message'] .= "/".$context['results'][a];
-//    print $keywords;
-    print "<pre>".print_r($PD, 1)."</pre>";
-
-    if ($PD->SeqIds) 
-      foreach($PD->SeqIds as $seq) {
-        db_query ("INSERT INTO libseq(BookId, SeqId, SeqNumb, Level) VALUES ($b, $seq[0], '$seq[1]', $seq[2]) 
-        ON DUPLICATE KEY UPDATE SeqNumb = '$seq[1]', Level = $seq[2]");
-      }
+    $context['results'][a]++;
+    fprintf($f, " \n");
   }
-
+  $context['finished'] = $b/$maxb;
+  fprintf($f,print_r($context, 1));
   fprintf($f, "\n");
   fclose ($f);
 }

@@ -99,7 +99,7 @@ function libSearch($qqq = '') {
   if ($alias) $r.= avline(S(" * FROM libavtorname WHERE AvtorId = $alias"));
 
   //книги
-  $w1 = "WHERE (Title like '$q' OR Title1 like '$q') AND NOT (Deleted&1)";
+  $w1 = "WHERE (Title like '$q' OR Title1 like '$q' OR md5 = '$q') AND NOT (Deleted&1)";
   $totb = Sel("COUNT(*) FROM libbook $w1");
   if ($totb) {
     $r.= "$h3style Найденные книги:</h3>";

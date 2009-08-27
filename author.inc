@@ -80,6 +80,7 @@ function libAvtor() {
   if ($forum) $comments = Sel ("COUNT(*) FROM comments WHERE nid = $forum") + 1; 
   if ($forum) $r .=  "<a href=/node/$forum>(обсужается на форуме - $comments сообщений)</a>"; 
   else $r .=  " <a href=/a/$av/forum>(обсудить на форуме)</a>"; 
+  if ($user->uid) $r .= " <a href=/a/$av/stat>(статистика)</a>";
   if (!$a1->NoDonate && ($a1->uid || $a1->WebPay)) $r .=  " <a href=/donate/author/$a>(заплатить автору)</a>";
 //  $r .= " <a href=/a/$av/stat>(статистика)</a>";
   $r .= '<br>';
@@ -542,6 +543,7 @@ function libAvtorSearchd($a) {
 function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   include_once drupal_get_path('module', 'librusec').'/validator.inc';
   global $user; 
+  if ($blocka <> '') $r = date('l jS \of F Y H:i')."<br>";
   if (!file_exists($f)) return "<p>Не найден файл $f. Беда...";
   $GenreIds = array();  
   $filetype = strtolower ($_POST['filetype']);
@@ -563,10 +565,13 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   if (!$filetype) $filetype = strtolower($ext);
   if (!$title) {
     $title = $fil;
-//    $title = iconv ("CP1251", "UTF-8", $fil);
     $r .= "Title: $title";
   }  
   $r .= "<form method=post action=/a/$a/addfile target=_blank><hr>Добавленине книги $title.<br>";
+  $md5 = md5_file($fn);
+  if (!$md5) return $r . " ошибка подсчёта md5";
+  if ($b = Sel("BookId FROM libbook WHERE md5 = '%s'", $md5))
+    return "<br>Книга уже есть в библиотеке - ".libAddDubl($f, $b, $blocka, $a);
   if ($filetype == 'fb2') {
     $v = validate($f);
     $r .= $v->s;
@@ -584,7 +589,6 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   } else {
     if ($a1 = S("* FROM bookwarrior.updated WHERE MD5 = '%s'", md5_file($f)))   
       return "Книга уже присутствует в библиотеке Genesis: <a href='http://gen.lib.rus.ec/get?md5=$a1->MD5'>$a1->Title$a1->VolumeInfo</a> ($a1->Author) ";
-    if (SuperUser()) {print "$f<pre>"; print_r($a1); print md5_file($f);exit;}
   }
   if (!$genre) $genre = strtolower($_POST['genre']);
   if (!$genre) return "Жанр не найден.";
@@ -627,14 +631,13 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   $id = $PD->head['FICTIONBOOK/DESCRIPTION/DOCUMENT-INFO/ID'];
   if ($id && ($BookId = Sel ("BookId FROM libcacheid WHERE Id = '$id'"))) {
     $oldver = Sel ("Ver FROM libbook WHERE BookId = $BookId");
+    if (!$oldver) $oldver = 1;
     $ver = $PD->head['FICTIONBOOK/DESCRIPTION/DOCUMENT-INFO/VERSION'];
-    if (1*$oldver >= 1*$ver) {
-      unlink ($f);
-      return $r . " Версия не лучше: ".bl($BookId)." $oldver:$ver<br>";
-    }
+    if (!$ver) $ver = 1;
+    if (1*$oldver >= 1*$ver) return $r.libAddDubl($f, $BookId, $blocka, $a)." Версия не лучше: $oldver:$ver<br>";
   } 
   foreach($PD->AvtorIds as $aid) {
-    if (!user_access('библиотекарь') && Sel('Blocked FROM libavtorname WHERE AvtorId = %d', $aid))
+    if ($blocka == '' && !user_access('библиотекарь') && Sel('Blocked FROM libavtorname WHERE AvtorId = %d', $aid))
       return 'Книги автора '.avl($a).' могут добавлять только библиотекари. Извините.';
     if ($BookId = Sel ("libbook.BookId FROM libbook JOIN libavtor USING (BookId) WHERE Title=\"$t\" AND AvtorId = '$aid' AND NOT (1&Deleted)")) break;   
     $ln = Sel ("LastName FROM libavtorname WHERE AvtorId = %d", $aid);
@@ -647,14 +650,10 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
   $outname = str_replace('/','_',translitcyr($avtors.' '.$title));
   $r .= " file:$outname<br>";
   $fff = "b/$outname.fb2";
-  if ($BookId) {
-    if ($fs == Sel("FileSize FROM libbook WHERE BookId = $BookId")) {
-      unlink ($f);
-      if ($blocka <> '') // книга добавлена роботом Литрес
-        libBlockBook($BookId, $blocka, $a);
-      return "<br>Книга уже есть в библиотеке - ".bl($BookId)."'$blocka'"; 
-    }
-  }    
+  if ($BookId) 
+    if ($fs == Sel("FileSize FROM libbook WHERE BookId = $BookId")) 
+      return "<br>Книга уже есть в библиотеке - ".libAddDubl($f, $BookId, $blocka, $a);
+
 // Не дубль, во всяком случае не такой как есть. Добавляем по-взрослому.
 
   $ii = '';
@@ -690,17 +689,16 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
   $nick = addslashes($nick);
   $keywords = addslashes($PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/KEYWORDS']);
   $srclang = addslashes($PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/SRC-LANG']);
-  $Action = "INSERT INTO libbook (FileSize, FileType, Title, Year, Ver, Lang, FileAuthor, keywords) VALUES ('$fs', '$filetype','$title','$year', '$ver', '$lang', '$nick', '$keywords')";
+  $Action = "INSERT INTO libbook (FileSize, FileType, Title, Year, Ver, Lang, FileAuthor, keywords, md5) VALUES ('$fs', '$filetype','$title','$year', '$ver', '$lang', '$nick', '$keywords', '$md5')";
   LogAction ($Action, "Add book","");
   $actionid = Sel ("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL = \"$Action\" ORDER BY ActionId DESC LIMIT 1" );
   watchdog('librusec', "SELECT ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL = \"$Action\" ORDER BY ActionId DESC LIMIT 1");
-  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$fs%$title%' ORDER BY ActionId DESC LIMIT 1");
-  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$title%' ORDER BY ActionId DESC LIMIT 1");
-  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$fs%' ORDER BY ActionId DESC LIMIT 1");
-  $b = Sel("BookId FROM libbook WHERE Title = '$title' AND FileSize = '$fs' ORDER BY BookId DESC LIMIT 1");
-  if (!$b) return $r. "Что-то не получилось. Свяжитесь с администрацией";
+  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$md5%' ORDER BY ActionId DESC LIMIT 1");
+  $b = Sel("BookId FROM libbook WHERE md5 = '$md5'");
+  if (!$b) return $r. "Что-то не получилось. Свяжитесь с администрацией<br>";
   if ($actionid) Update(libactions, "BookId=$b", "ActionId=$actionid");
   if ($id=addslashes($id)) Insert(libcacheid, "BookId, Id", "$b, '$id'");
+  if ($srclang && $srclang != $lang) Insert(libsrclang, "BookId, SrcLang", "%d, '%s'", $b, $srclang);
   chmod($nn1, 0644);
   if ($filetype == 'fb2') {
     rename ($nn1, "b/$b.fb2"); 
@@ -726,6 +724,13 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
      $r .= " Ткните в него для разрешения конфликта. <a href=/b/$b/join/$dublid  target=_blank>Дубль: $title</a>";  
   }
   return $r . "<hr>\n";
+}
+
+function libAddDubl($f, $b, $blocka) {
+  unlink ($f);
+  if ($blocka <> '') // книга добавлена роботом Литрес
+  libBlockBook($b, $blocka, $a);
+  return bl($b);
 }
 
 function libAvtorRSS($a) {
@@ -759,10 +764,9 @@ function libAvtorStat($a, $c1, $c2, $c3, $order) {
 <input type=radio name=order value=t onClick="submit()" '.$c3.'>По дате поступления<br></form>';
 
   $mname = array ("Дек", "Янв", "Фев", "Мар", "Апр", "Май", "Июнь", "Июль", "Авг", "Сен", "Окт", "Ноя", "Дек");
-  $sth = SELECT("BookId, Mes, libstat.N AS N, Deleted 
-                 FROM libstat JOIN libavtor USING(BookId) JOIN libbook USING(BookId) LEFT JOIN libseq USINF(BookId) LEFT JOIN(libseqname) USING (SeqId)
-                 WHERE AvtorId = $a ORDER BY $order");
-  
+  $sth = SELECT("BookId, Mes, libstat.N AS N, Deleted
+                 FROM libstat JOIN libavtor USING(BookId) JOIN libbook USING(BookId) 
+                 WHERE AvtorId = $a".($c2?'':" ORDER BY $order"));
   while ($a1 = dbf($sth)) {
     $dl = $a1->Deleted&1;
     $b = $a1->BookId;
@@ -776,6 +780,7 @@ function libAvtorStat($a, $c1, $c2, $c3, $order) {
         $dl = 0;
     }
     $ALL[$b] += $n; 
+    $SEQ[$b] = $a1->SeqId;
     $ALLM[$ym] += $n;
     $BM[$b][$ym] += $n;
     $all += $n;
@@ -791,6 +796,14 @@ function libAvtorStat($a, $c1, $c2, $c3, $order) {
   $r .= "<th>$all";
   for ($i = $firstym; $i <= $lastym; $i++) if ($ALLM[$i]) 
     $r .= "<th>$ALLM[$i]</a>";
+function libcmpastat($a, $b) {
+  $s1 = Sel("SeqId*1000+SeqNumb FROM libseq WHERE BookId = $a");
+  $s2 = Sel("SeqId*1000+SeqNumb FROM libseq WHERE BookId = $b");
+  if ($s1==$s2) return 0;
+  if ($s1<$s2) return -1;
+  if ($s1>$s2) return 1;
+}
+  if ($c2) uksort($ALL, 'libcmpastat');
   foreach ($ALL as $b => $n) {
     $newseq = Sel("SeqId FROM libseq WHERE BookId = $b");
     if ($c2 && $seq != $newseq) {

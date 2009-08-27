@@ -35,12 +35,15 @@ function libMass() {
         if ($_GET['downloadall']) {
           if (!$a1 = S("* FROM libbook WHERE BookId = '$b'")) continue;
           if ($a1->Blocked && !user_access('библиотекарь')) continue;
+          if ($a1->Broken) continue;
           if ($a1->FileType == 'fb2') {
             if ($dtp == 'pdf') {
               $ii++;
               $pdfform .= "<input type=text size=30 name=book$ii value=http://lib.rus.ec/b/$b/fb2><br>\n";
             } elseif($dtp == 'lrf') {
               $pdfform .="http://lib.rus.ec/b/$b/fb2\n";
+            } elseif($dtp == 'java') {
+              return 'Пока не научились. Качайте по одной. Если Вас это огорчает, свяжитесь, пожалуйста, с разработчиками - <a href=mailto:support@fb2java.com>support@fb2java.com</a>';
             } else {  
               $zip = MakeZipFile($b, $dtp);
               if (file_exists($zip)) $f = $zip;    

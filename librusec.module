@@ -341,6 +341,12 @@ function librusec_search($op = 'search', $keys = null) {
 
 function librusec_user($op, &$edit, &$u) {
   if ($op != 'view') return;
+  if (($u->uid > 0 && (Sel("uid FROM libdonations WHERE uid = $u->uid") || Sel("uid FROM libavtorname WHERE uid = $u->uid")))) 
+  $u->content['summary']['libDonate'] =  array(
+      '#type' => 'user_profile_item',
+      '#title' => t('Платежи'),
+      '#value' => "<a href='/donate/stat/user/$u->uid'>Платежи</a>"
+  );
   if (user_access('библиотекарь')) 
   $u->content['summary']['lib1'] =  array(
       '#type' => 'user_profile_item',
@@ -367,7 +373,7 @@ function librusec_user($op, &$edit, &$u) {
 }
 
 function librusec_cron() {
-  if (LA() > 1) return;
+  if (LA() > 3) return;
   $tm = Sel("SUBDATE(NOW(), 7)");
   $sth = SELECT("CONCAT(substr(time,3,2),substr(time,6,2)) AS Mes, BookId, SUM(1) AS N FROM `liblog` WHERE Time < '%s' GROUP BY BookId", $tm);
   while ($a1 = db_fetch_object($sth)) {

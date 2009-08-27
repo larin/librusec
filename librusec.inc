@@ -19,20 +19,18 @@ function LA() {
   Global $LoadAvg;
   if ($LoadAvg > 0) return $LoadAvg;
   $fh = @fopen("/proc/loadavg", 'r');
-  if(!$fh) return 1; // non-linux fix
-  if(file_exists("/www/la.sql")) // проверка на существование файла la.sql: если нагрузка на сайт очень мала, то эта функция особо и не нужна. =)
-  {
-    $Data = fread($fh, 55);
-    fclose($fh);
-    list ($la1) = split(' ', $Data);
-    $fh = fopen("/www/la.sql", 'r');
-    $Data = fread($fh, 55);
-    fclose($fh);
-    list ($la2) = split(' ', $Data);
-    $LoadAvg = max($la1, $la2)/3;
-    return $LoadAvg; 
-  }
-  else return 0.5;
+  if(!$fh) return 0; // non-linux fix
+  $Data = fread($fh, 55);
+  fclose($fh);
+  list ($la1) = split(' ', $Data);
+  if (!file_exists("/www/la.sql")) // проверка на существование файла la.sql: если нагрузка на сайт очень мала, то эта функция особо и не нужна. =)
+    return $la1; 
+  $fh = fopen("/www/la.sql", 'r');
+  $Data = fread($fh, 55);
+  fclose($fh);
+  list ($la2) = split(' ', $Data);
+  $LoadAvg = max($la1, $la2)/3;
+  return $LoadAvg; 
 }
 
 // выдаёт, новый пользователь или давно зарегистрировался (сейчас 2 дня)
@@ -282,6 +280,20 @@ function AddSeqId ($s) {
 }
 
 function RemoveBook($b) {
+  if($good = Sel("GoodId FROM libjoinedbooks WHERE BadId = %d", $b)) {
+    Update(liblog, 'BookId=%d', 'BookId=%d', $good, $b);
+    Update(libpolka, 'BookId=%d', 'BookId=%d', $good, $b);
+    Update(librate, 'BookId=%d', 'BookId=%d', $good, $b);
+    Update(librate, 'BookId=%d', 'BookId=%d', $good, $b);
+    Update(libreaded, 'BookId=%d', 'BookId=%d', $good, $b);
+    $sth = SELECT("* FROM libstat WHERE BookId = %d", $b);
+    while ($a1 = dbf($sth)) {
+      if ($n = Sel("N FROM libstat WHERE BookId = %d AND Mes='%s'", $good, $a1->Mes))
+        Update(libstat, "N=N+$a1->N", "BookId=%d AND Mes='%s'", $good, $a1->Mes);
+      else
+        Insert(libstat, "BookId, Mes, N", "%d, '%s', %d", $good, $a1->Mes, $a1->N);
+    }
+  }
   Delete('libbook WHERE BookId=%d', $b);
   Delete('libgenre WHERE BookId=%d', $b);
   Delete('libavtor WHERE BookId=%d', $b);
@@ -291,6 +303,9 @@ function RemoveBook($b) {
   Delete('libseq WHERE BookId=%d', $b);
   Delete('libblocked WHERE BookId=%d', $b);
   Delete('libfilename WHERE BookId=%d', $b);
+  Delete('libpolka WHERE BookId=%d', $b);
+  Delete('librate WHERE BookId=%d', $b);
+  Delete('libjoinedbooks WHERE BadId=%d OR GoodId = %d', $b, $b);
   libsettag("b$b");
 }
 
@@ -405,7 +420,7 @@ function libSelectFileType($b = 0) {
   $seltp = "<select id=useropt name=dtp onchange=setuseropt('D')>";
   $tp = GetUserOpt('D');
   if (!$tp) $tp = 'fb2';
-  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub', 'lrf') as $fmt)  
+  foreach (array('fb2', 'html', 'txt', 'rtf', 'pdf', 'epub', 'lrf', 'java') as $fmt)  
     $seltp .= '<option '.($fmt==$tp?' selected':'').">$fmt";
   $seltp .= '</select>';
   return $seltp;
@@ -579,8 +594,12 @@ function DoLibRow($b, $style='') {
       if (!strstr($style,'noread')) 
         $r .= " &nbsp; <a href=/b/$b/read>(читать)</a> &nbsp; ";
       if (!$a1->Blocked) {
-        $r .= " <a href=/b/$b/download>(скачать)</a> ";
-        if (strstr($style,'seltype')) $r .= ' '.libSelectFileType($b);     
+        if ($user->uid) {
+          $r .= " <a href=/b/$b/download>(скачать)</a> ";
+          if (strstr($style,'seltype')) $r .= ' '.libSelectFileType($b);     
+        } else {
+          $r .= " <a href=/b/$b/fb2>(скачать fb2)</a> <a href=/b/$b/java>(на телефон)</a> ";
+        }  
       }  
     } else {
       $r .= " <a href=/b/$b/download>(скачать $tp)</a> ";
@@ -1080,8 +1099,8 @@ function MakeZipFile($b, $dtp) {
     $zip = "$r.zip";
   }  
 //  if (file_exists($zip) && (filemtime($zip) < filemtime("b/$b.fb2") || filemtime($zip) < filemtime("modules/librusec/book.inc") || $user->uid == 1)) unlink ($zip);
-  if (file_exists($zip))   
-    return $zip;
+  if (file_exists($zip)) return $zip;
+  if (Sel("Broken FROM libbook WHERE BookId = %d", $b)) return '';
   $key = sem_get($b%5 + 1, 30);
   if (!sem_acquire($key)) return '';
   if (file_exists($zip) && $user->uid != 1) {

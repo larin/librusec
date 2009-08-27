@@ -17,14 +17,18 @@ function libSaveLog($b, $u) {
 function libBook() {
   Global $user, $ShowEN, $ttt, $jj; 
   $ttt[$jj++] = microtime(1);
-  $bo = addslashes(arg(1));
-  if ($bo > 0 && $bo == 1*$bo) {
+  $bo = arg(1);
+  if (!$bo) return libList('b', '');
+  if ($bo > 0 && $bo <= Sel("MAX(BookId) FROM libbook")) {
     $b = Sel ("BookId FROM libbook WHERE BookId = %d", $bo);
-  } elseif ($bo) {
-//    if (!Sel("BookId FROM libbook WHERE Title LIKE '$bo%' AND NOT (Deleted&1) LIMIT 1"))
-//      $bo = iconv ("windows-1251", "UTF-8", $bo);
+  } else {
+    $bo = addslashes($bo);
     $sth = SELECT("BookId FROM libbook WHERE Title LIKE '$bo%' AND NOT (Deleted&1)");
     for ($n = 0; $bb = db_result($sth); $n++) $r .= '<li>'.bl($b=$bb).' - '.avl(Sel("AvtorId FROM libavtor WHERE BookId = $bb LIMIT 1"));
+    if ($n == 0) {
+      $sth = SELECT("BookId FROM libcacheid JOIN libbook USING(BookId) WHERE Id = '$bo' AND NOT (Deleted&1)");
+      for ($n = 0; $bb = db_result($sth); $n++) $r .= '<li>'.bl($b=$bb).' - '.avl(Sel("AvtorId FROM libavtor WHERE BookId = $bb LIMIT 1"));
+    }  
   }
   if ($n > 1) {
     set_title("Книги по названию $bo");
@@ -144,6 +148,7 @@ document.write('<img src=\"http://ad1.edu-all.ru/bb.cgi?cmd=ad&pubid=' + userid 
   $ttt[$jj++] = microtime(1);
   if ($book->Blocked) $r .= '('.libUnblockMes($book).')';
   $r .= DoLibRow($book, 'sequencen nolink genre nobreak seltype notrans');
+  if ($book->Broken) $r .= '(битый fb2)';
   $ttt[$jj++] = microtime(1);
   if ($book->block) $r .= " <img src=/img/zamok.gif border=0 alt='Заблокировано'>";
   if ($book->Year) $r .= " &nbsp; издание $book->Year г. ";
@@ -272,6 +277,7 @@ function libDownloadBook($a1, $dtp = 'fb2') {
   if ($a1->FileType == 'fb2') {
     if ($dtp == 'pdf') drupal_goto("http://www.fb2pdf.com/convert.php?auto=yes&url=http://lib.rus.ec/b/$b/fb2");
     if ($dtp == 'lrf') drupal_goto("http://onlinelrf.com/Convert.aspx?url=http://lib.rus.ec/b/$b/fb2");
+    if ($dtp == 'java') drupal_goto("http://fb2java.com/upload?action=uploadUrl&url=http://lib.rus.ec/b/$b/fb2");
     $zip = MakeZipFile($b, $dtp);
     if ($zip) return drupal_goto($zip);
     else return "Не получилось изготовить файл";

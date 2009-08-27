@@ -25,10 +25,11 @@ function librusec_schema() {
       'N' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
       'FileAuthor' => array('type' => 'varchar', 'length' => '64', 'not null' => TRUE, 'default' => ''),
       'keywords' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+      'md5' => array('type' => 'char', 'length' => '32', 'not null' => TRUE, 'default' => ''),
       'Blocked' => array('type' => 'char', 'length' => '1', 'not null' => TRUE, 'default' => ''),
     ),
     'primary key' => array('BookId'),
-    'unique keys' => array('FileName' => array('FileName')),
+    'unique keys' => array('md5' => array('md5')),
     'indexes' => array(
          'Deleted' => array('Deleted'),
          'FileSize' => array('FileSize'),
