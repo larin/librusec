@@ -567,8 +567,8 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
     $title = $fil;
     $r .= "Title: $title";
   }  
-  $r .= "<form method=post action=/a/$a/addfile target=_blank><hr>Добавленине книги $title.<br>";
-  $md5 = md5_file($fn);
+  $r .= "<form method=post action=/a/$a/addfile target=_blank><hr>Добавление книги $title.<br>";
+  $md5 = md5_file($f);
   if (!$md5) return $r . " ошибка подсчёта md5";
   if ($b = Sel("BookId FROM libbook WHERE md5 = '%s'", $md5))
     return "<br>Книга уже есть в библиотеке - ".libAddDubl($f, $b, $blocka, $a);

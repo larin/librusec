@@ -108,6 +108,7 @@ document.write('<img src=\"http://ad1.edu-all.ru/bb.cgi?cmd=ad&pubid=' + userid 
     case 'pdb':
     case 'epub':
     case 'lrf':
+    case 'java':
       return libDownloadBook($book, arg(2));
   } 
 
