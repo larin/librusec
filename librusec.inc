@@ -902,12 +902,6 @@ function Undellink($b) {
   return "<h4>Книга $b удалена из библиотеки. <a href=/b/$b/undel>(восстановить)</a> <a href=/b/$b/join>(указать правильную)</a></h4>\n";
 }  
 
-function GetFileName($b) {
-  if (Sel ("FileType FROM libbook WHERE BookId = $b") !== 'fb2') 
-    return "b.usr/".Sel("FileName FROM libfilename WHERE BookId = $b");
-  return "b/$b.fb2";
-}
-
 function set_title($t) {
   drupal_set_title($t);
 }

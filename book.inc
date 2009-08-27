@@ -19,16 +19,18 @@ function libBook() {
   $ttt[$jj++] = microtime(1);
   $bo = arg(1);
   if (!$bo) return libList('b', '');
-  if ($bo > 0 && $bo <= Sel("MAX(BookId) FROM libbook")) {
+  if ($bo > 0 && strlen($bo) < 16 && $bo <= Sel("MAX(BookId) FROM libbook")) {
     $b = Sel ("BookId FROM libbook WHERE BookId = %d", $bo);
-  } else {
-    $bo = addslashes($bo);
-    $sth = SELECT("BookId FROM libbook WHERE Title LIKE '$bo%' AND NOT (Deleted&1)");
-    for ($n = 0; $bb = db_result($sth); $n++) $r .= '<li>'.bl($b=$bb).' - '.avl(Sel("AvtorId FROM libavtor WHERE BookId = $bb LIMIT 1"));
-    if ($n == 0) {
-      $sth = SELECT("BookId FROM libcacheid JOIN libbook USING(BookId) WHERE Id = '$bo' AND NOT (Deleted&1)");
-      for ($n = 0; $bb = db_result($sth); $n++) $r .= '<li>'.bl($b=$bb).' - '.avl(Sel("AvtorId FROM libavtor WHERE BookId = $bb LIMIT 1"));
-    }  
+  } 
+  if (!$b) {
+    $sth = SELECT("BookId FROM libbook LEFT JOIN libcacheid USING(BookId) WHERE (Id = '%s' OR md5 = '%s') AND NOT (Deleted&1)", $bo, $bo);
+    for ($n = 0; $bb = db_result($sth); $n++) 
+      $r .= '<li>'.bl($b=$bb).' - '.avl(Sel("AvtorId FROM libavtor WHERE BookId = $bb LIMIT 1"));
+  }    
+  if (!$b) {
+    $sth = SELECT("BookId FROM libbook WHERE Title LIKE '%s%' AND NOT (Deleted&1)", $bo);
+    for ($n = 0; $bb = db_result($sth); $n++) 
+      $r .= '<li>'.bl($b=$bb).' - '.avl(Sel("AvtorId FROM libavtor WHERE BookId = $bb LIMIT 1"));
   }
   if ($n > 1) {
     set_title("Книги по названию $bo");
@@ -283,6 +285,7 @@ function libDownloadBook($a1, $dtp = 'fb2') {
     else return "Не получилось изготовить файл";
   }
   $f = Sel("FileName FROM libfilename WHERE BookId = $b");
+  if (!$f) return drupal_goto("http://gen.lib.rus.ec/get?md5=".$a1->md5);
   if (file_exists("b.usr/$f")) return drupal_goto("b.usr/$f");
   if (file_exists($f)) return drupal_goto($f);
   if ($server = variable_get('librusec_mans','')) return drupal_goto("$server$f"); 
@@ -570,18 +573,6 @@ function libBookCreateSeq($b) {
   if ($SeqId >0 && $SeqNumb !== '') 
     BookAddSeq($b, $SeqId, $SeqNumb);
   return lgo ("b/$b/edit");   
-}
-
-function libBookSetFileSize($b) {
-  Global $user;
-  print "$user->name";
-  $fs = Sel ("FileSize FROM libbook WHERE BookId = $b");
-  $fn = GetFileName($b);
-  $fs1 = filesize($fn);
-  print "$fn : $fs1";
-  if ($fs1 && $fs != $fs1) Update("libbook", "FileSize=$fs1", "BookId = $b");
-  else print 'errorrrrr';
-  exit;
 }
 
 function libBookSetTitle($b) {

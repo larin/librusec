@@ -275,7 +275,7 @@ function librusec_form(&$node, &$param) {
   }
   if ($id) {
     $form['title'] = array ('#type' => 'hidden', '#value' => $id);
-    drupal_set_title("$name - описание");
+    set_title("$name - описание");
     $form['body'] = array(
       '#weight' => -9,
       '#type' => 'textarea',

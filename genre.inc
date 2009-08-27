@@ -6,7 +6,7 @@ function libGenre() {
   if (!$ShowEN) $asql = "AND Lang='ru' AND libbook.Blocked = '' ";
   $g = arg(1);
   if (!$g || $g == 'all' || $g == 'ge') { 
-    drupal_set_title("Список жанров");
+    set_title("Список жанров");
     Global $sa, $rd; AnnChkbox();
     $gg = libListBlackGG();
     $CacheFile = 'cache/g/all'.($asql ? '.anonim':'').".html";
@@ -72,7 +72,7 @@ function libGenre() {
     break;        
   }
   
-  drupal_set_title($g1->GenreDesc);
+  set_title($g1->GenreDesc);
   drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="Новости жанра '.$g1->GenreDesc.' на Либрусеке RSS" href="/g/'.$g1->GenreCode.'/rss" />');  
   if (arg(2) == 'Title' ) {
     $order = 'Title';

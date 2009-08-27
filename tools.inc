@@ -198,16 +198,14 @@ function libDownload() {
   }
   if ($w) $w .= ' AND '; 
   else $w = ' WHERE ';
-  $w = "FROM libbook LEFT JOIN libfilename USING(BookId) $w NOT (Deleted&1)"; 
+  $w = "FROM libbook $w NOT (Deleted&1)"; 
   $cnt = Sel ("Count(*) $w");
   $r = "<p>Всего нашлось около $cnt книг";
-  $sth1 = pager_query("SELECT libbook.BookId AS b, Title, FileSize, FileName, FileType $w GROUP BY 1,2,3,4,5 ORDER BY 1 DESC", 10000, 0, "SELECT $cnt FROM libgenrelist");
+  $sth1 = pager_query("SELECT libbook.BookId AS b, Title, FileSize, FileType $w GROUP BY 1,2,3,4,5 ORDER BY 1 DESC", 10000, 0, "SELECT $cnt FROM libgenrelist");
 
   while ($a1=dbf($sth1)) { 
-    $l = $a1->FileType == 'fb2' ? "/b/$a1->b/download" : '/b.usr/'.$a1->FileName;
-    $r .=  "<br><a href=$l>$a1->Title ($a1->FileSize)</a>\n";
+    $r .=  "<br><a href=/b/$a1->b/download>$a1->Title ($a1->FileSize)</a>\n";
   }
-//  LogAction('', "Mass get '$ge', '$ty','$av' - $cnt","SELECT BookId, Title, FileSize $w");
   return $r.theme('pager');
 }
 

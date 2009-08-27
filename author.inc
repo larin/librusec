@@ -673,12 +673,6 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
   if (!file_exists($nn1)) return $r. "<p>Не получилось записать файл $f в $nn1";
   $year = $year>0?(integer)$year:$PD->head['FICTIONBOOK/DESCRIPTION/PUBLISH-INFO/YEAR'];;
   if (!$lang) $lang = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/LANG'];
-  if ($filetype != 'fb2') {
-    if ($qq=Sel("BookId FROM libfilename WHERE FileName = \"$nn\"")) 
-      return $r. "<p>Файл $nn <a href=/b/$qq>уже есть в базе</a>. Повторы недопустимы.";
-  } else {
-    $nn = Sel("MAX(BookId) FROM libbook") + 1 + $user->uid*100;
-  }    
   if (!$GenreIds[0]) return $r . "<br>Жанр не найден";
   $title = addslashes($title);
   if ($p = $PD->head['FICTIONBOOK/DESCRIPTION/DOCUMENT-INFO/AUTHOR/NICKNAME']) $nick = $p;

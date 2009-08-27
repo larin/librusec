@@ -6,6 +6,14 @@ Global $path, $PP;
 function libCheck() {
   switch (arg(1)) { 
    case 'md5':
+     $sth = SELECT("BookId, libfilename.FileName AS fn, md5 FROM libbook JOIN bookwarrior.updated USING(md5) JOIN libfilename USING(BookId) WHERE FileType <> 'fb2' ");
+     while ($a1 = dbf($sth)) {
+       $fn = "b.usr/".$a1->fn;
+       $r .= "<li>".FileSize($fn)." ".$fn." ".bl($a1->BookId);
+       Delete('libfilename WHERE BookId = %d', $a1->BookId);
+       unlink($fn);
+     }
+     return $r;
      $r = "<ol>";
      if ($md5 = arg(2)) {
        $sth = SELECT("* FROM `libbook` WHERE md5 = '%s'", $md5);
