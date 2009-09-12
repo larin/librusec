@@ -155,6 +155,7 @@ $paid
 <table border=3 bordercolor=gray><tr>
 <th>MoneyBookers
 <th>PayPal
+<th>Yandex Money
 <th>WU
 <th>Webmoney
 <th>SMS
@@ -162,6 +163,7 @@ $paid
 <tr>
 <td>(кредитки, переводы)
 <td>(кредитки)
+<td>
 <td>(наличные)
 <td>
 "//<td>(50 стран)
@@ -194,6 +196,7 @@ $paid
 <input type=hidden name=amount value='10.00' id=sum>
 <input type=submit name=submit value='Заплатить'>
 </form>
+<td>41001293011644
 <td valign=top><a href=/contact>Ilya Larin, Ecuador</a>
 <td valign=top>
 Z630179967226<br>R377382658187 

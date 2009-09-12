@@ -622,7 +622,8 @@ book_author: ".AvtorName($a)."
 book_name: $a1->Title
 </textarea>
 &nbsp;
-<a href='' onmouseover=\"topadvert_open_div('topadvert_open_div_$b', event);\" onmouseout=\"topadvert_close_div('topadvert_open_div_$b')\" onclick=\"return false;\">(купить)</a>
+<a href='http://lit.rus.ec/pages/biblio_search/?q=$a1->Title' 
+onmouseover=\"topadvert_open_div('topadvert_open_div_$b', event);\" onmouseout=\"topadvert_close_div('topadvert_open_div_$b')\">(купить)</a>
 ";
       }
       $r .= $ast;
@@ -1103,7 +1104,7 @@ function MakeZipFile($b, $dtp) {
   }
   if ($dtp == 'fb2' || $dtp == '') {
     if (!libGenerateFB2("b/$b.fb2", $r)) 
-      exec ("ln b/$b.fb2 \"$r\"");
+      exec ("ln -s b/$b.fb2 \"$r\"");
     exec ("zip -mj \"$zip\" \"$r\"");
   } else {  
     if ($err = MakeFile($b, "b/$b.fb2", $dtp, $r)) {
@@ -1179,28 +1180,35 @@ function LibListGenres($b) {
   return $r ? "($r)" : '';
 }
 
-function libCheckLitres() {
+function libCheckLitres($cron) {
 module_load_include('inc', 'librusec', 'author');
   $in = '/home/litres/litres_uploads/';
   $ou = '/home/litres/done/';
   $tmp = '/home/litres/tmp/';
+  for ($iii = 0; $iii < $cron ? 1 : 3; $iii++)
   foreach (glob($in.'*.descr') as $filedesc) {
     $zip = substr($filedesc, 0, strlen($filedesc)-5).'fb2.zip';
     $desc1 = $ou.substr($filedesc, strlen($in));
     $book1 = $ou.substr($zip, strlen($in));
-    if (file_exists($desc1) && file_exists($book1)) continue;
+    if (file_exists($desc1) && file_exists($book1) && ($iii == 0 || (time() - filemtime($book1) > 3600*12*$iii))) continue;
     system("unzip -d $tmp '$zip'");
     foreach (glob($tmp.'*.fb2') as $fb2) {
       $desc = file($filedesc);  
       $blocka = $desc[2];
-      $r .= AddFileToLibrusec($fb2, 'fb2', -1, $blocka);    
+      $q = $cron ? "<br><b>CRON</b> " : "<br><b>$iii</b> ";
+      $q .= date('l jS \of F Y H:i')."<br>";
+      $q .= AddFileToLibrusec($fb2, 'fb2', -1, $blocka)."\n";    
+      if (file_exists($fb2)) $q .= "<h7>$fb2 не обработался!</h7>\n";
+      $fh = fopen('/l/litres.html', 'a');
+      fwrite($fh, $q);
+      fclose($fh);
+      print $q;
+      $r .= $q;
     }      
-    copy($filedesc, $desc1);
-    copy($zip, $book1);
+    if (!file_exists($desc1)) copy($filedesc, $desc1);
+    if (!file_exists($book1)) copy($zip, $book1);
   }
-  print $r;
-  fwrite(fopen('/l/litres.html', 'a'), $r);
-  exit;
+  return "Найдено новья:<br>".$r;
 } 
 
 function libBookDays($a1) {

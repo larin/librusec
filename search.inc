@@ -208,10 +208,12 @@ function m($s) {
 function avline($a1) {
   Global $ask;
   $a = $a1->AvtorId;
-  $cnt = Sel("count(*) FROM libavtor JOIN libbook USING (BookId) WHERE AvtorId = $a AND NOT (Deleted&1)"); 
+  $cnt = Sel("count(*) FROM libavtor JOIN libbook USING (BookId) WHERE AvtorId = $a AND NOT (Deleted&1)") + 
+         Sel("count(*) FROM libtranslator JOIN libbook USING (BookId) WHERE TranslatorId = $a AND NOT (Deleted&1)"); 
   if (!$cnt) {
     $GoodId = Sel("GoodId FROM libavtoraliase WHERE BadId=$a");
-    if ($GoodId) $cnt = Sel("count(*) FROM libavtor JOIN libbook USING (BookId) WHERE AvtorId = $GoodId AND NOT (1&Deleted)"); 
+    if ($GoodId) $cnt = Sel("count(*) FROM libavtor JOIN libbook USING (BookId) WHERE AvtorId = $GoodId AND NOT (1&Deleted)") 
+       + Sel("count(*) FROM libtranslator JOIN libbook USING (BookId) WHERE TranslatorId = $GoodId AND NOT (Deleted&1)"); ;  
   }
   if (!$cnt) return '';
   $name = "$a1->FirstName $a1->MiddleName $a1->LastName";

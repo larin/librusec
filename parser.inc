@@ -215,7 +215,7 @@ function libParserData($parser, $E) {
     } elseif (strstr($p, 'ANNOTATION') ) {
       $PD->head[$p] .= $E; 
      } else {
-      if ($PD->head[$p] && $E != ' ') $PD->head[$p] .= ',';
+      if ($PD->head[$p] && $E != ' ' && !$PD->IN['BOOK-TITLE']) $PD->head[$p] .= ',';
       $PD->head[$p] .= $E; 
     }  
   }  

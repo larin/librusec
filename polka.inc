@@ -112,10 +112,14 @@ function libPolkaShow($u) {
       $mode = Sel("bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $user->uid);
       $gg = libListBlackGG();
     }
+    $cid = md5("pall$u.$gg.p".$_GET['page'].($mode?'':"uu".$user->uid));
+    if ($r = libcg($cid)) return $r;
     $fields = "BookId, libpolka.UserId AS UserId, Text, Time";        
     if ($gg) {
-      $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE (isnull(bg.UserId) OR bg.UserId != $user->uid) AND";
-      $group = "GROUP BY BookId";
+      if (!$_GET['page']) $limit = "libpolka.ID > 44000 AND ";
+      else $limit = "libpolka.ID > 30000 AND ";
+      $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE $limit (isnull(bg.UserId) OR bg.UserId != $user->uid) AND";
+      $group = "GROUP BY libpolka.ID";
     } else {
       $where = "WHERE";
     } 
@@ -126,7 +130,7 @@ function libPolkaShow($u) {
       $bl .= bwlist_makewhere('libpolka.UserId');
       if ($bl) $S = "FROM libpolka $where $bl AND Flag = '' AND Text <> ''"; 
     } 
-    $sth = pgq("SELECT $fields $S $group ORDER BY libpolka.ID DESC", Sel ("COUNT(*) $S"));
+    $sth = pgq("SELECT $fields $S $group ORDER BY libpolka.ID DESC", 10000); //Sel ("COUNT(*) $S")
     while ($a1 = dbf($sth)) {
       if ($tm = ptm($a1->Time)) {
         if ($r) $r .= '<br>';
@@ -134,7 +138,7 @@ function libPolkaShow($u) {
       }
       $r .= libpline($a1, 1);
     }  
-    return libListBlackGenre().$r."<br>".theme('pager');
+    return libcs($cid, libListBlackGenre().$r."<br>".theme('pager'), 'polka');
   }    
 
   if ($u) $u = Sel("uid FROM users WHERE uid = '$u' OR name = '$u'");

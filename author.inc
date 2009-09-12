@@ -177,7 +177,7 @@ GROUP BY 2 ORDER BY $order");
   if ($user->uid != 1)
     if($user->uid == 0 || !Sel("uid FROM bwlist WHERE uid = $user->uid LIMIT 1")) { //аноним или пользователь без блэклиста, можно кэшировать
     $cid = "v$a";
-    if ($v = libcg($cid, polka))
+    if ($v = libcg($cid))
       return $r.$v;
     $v = ' ';  
   }    
@@ -188,8 +188,7 @@ GROUP BY 2 ORDER BY $order");
     $v .= libpline($a1, 1);
   }   
   $ttt[$jj++] = microtime(1);
-  if ($cid) libcs($cid, $v);
-  return $r.$v;
+  return $r.libcs($cid, $v, 'polka');
 }
 
 function libAvtorV($a) {
@@ -377,7 +376,7 @@ function libAvtorAddBook($a) {
     $ext=$filetype;
   }
   if (!$filetype && $ext) {
-    $r .= "<p>Неуказан тип файла. Используем $ext"; 
+    $r .= "<p>Не  указан тип файла. Используем $ext"; 
     $filetype = $ext;
   }
   if (!$filetype || !$ext) return "Непонятки с типом файла. Перезалейте.";
@@ -543,7 +542,6 @@ function libAvtorSearchd($a) {
 function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   include_once drupal_get_path('module', 'librusec').'/validator.inc';
   global $user; 
-  if ($blocka <> '') $r = date('l jS \of F Y H:i')."<br>";
   if (!file_exists($f)) return "<p>Не найден файл $f. Беда...";
   $GenreIds = array();  
   $filetype = strtolower ($_POST['filetype']);
@@ -570,8 +568,15 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   $r .= "<form method=post action=/a/$a/addfile target=_blank><hr>Добавление книги $title.<br>";
   $md5 = md5_file($f);
   if (!$md5) return $r . " ошибка подсчёта md5";
-  if ($b = Sel("BookId FROM libbook WHERE md5 = '%s'", $md5))
-    return "<br>Книга уже есть в библиотеке - ".libAddDubl($f, $b, $blocka, $a);
+  if ($b = Sel("BookId FROM libbook WHERE md5 = '%s'", $md5)) {
+    if (Sel("FileType FROM libbook Where BookId = $b") == 'fb2') {
+      if (file_exists("b/$b.fb2"))
+        return "<br>Книга уже есть в библиотеке (b/$b.fb2) - ".libAddDubl($f, $b, $blocka, $a);
+      RemoveBook($b);
+    } else {
+      return "<br>Книга уже есть в библиотеке - ".libAddDubl($f, $b, $blocka, $a);
+    }  	  
+  }  
   if ($filetype == 'fb2') {
     $v = validate($f);
     $r .= $v->s;
@@ -621,20 +626,19 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   if ($fs < 4999 && !user_access('библиотекарь')) return "Файл не найден или очень уж мал. Стихи и прочую мелочь просьба собирать в сборники килобайт хотя бы по сто.";
   if ($PD->AvtorIds[0]) $a = $PD->AvtorIds[0]; else $PD->AvtorIds[0] = $a;
 
-  $r .= " Наменование: $title<br>";
+  $r .= " Название: $title<br>";
 //Попытаемся выловить дубли. Может, получится. Будем надеяться. Дубли - это наша беда. Да.
   $t = trim(preg_replace('/\(.+\d+\s*\)/','',$title));
   $t = preg_replace('/…/','',$t); 
   $t = preg_replace('/"/',"'",$t); 
-//  print " Наменование: $t";
-//if ($user->uid == 1) {print "<pre>"; print_r($PD); exit;}
   $id = $PD->head['FICTIONBOOK/DESCRIPTION/DOCUMENT-INFO/ID'];
   if ($id && ($BookId = Sel ("BookId FROM libcacheid WHERE Id = '$id'"))) {
     $oldver = Sel ("Ver FROM libbook WHERE BookId = $BookId");
     if (!$oldver) $oldver = 1;
     $ver = $PD->head['FICTIONBOOK/DESCRIPTION/DOCUMENT-INFO/VERSION'];
     if (!$ver) $ver = 1;
-    if (1*$oldver >= 1*$ver) return $r.libAddDubl($f, $BookId, $blocka, $a)." Версия не лучше: $oldver:$ver<br>";
+    if (1*$oldver >= 1*$ver && file_exists("b/$BookId.fb2") )
+      return $r.libAddDubl($f, $BookId, $blocka, $a)." Версия не лучше: $oldver:$ver<br>";
   } 
   foreach($PD->AvtorIds as $aid) {
     if ($blocka == '' && !user_access('библиотекарь') && Sel('Blocked FROM libavtorname WHERE AvtorId = %d', $aid))
@@ -688,6 +692,7 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
   $actionid = Sel ("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL = \"$Action\" ORDER BY ActionId DESC LIMIT 1" );
   watchdog('librusec', "SELECT ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL = \"$Action\" ORDER BY ActionId DESC LIMIT 1");
   if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$md5%' ORDER BY ActionId DESC LIMIT 1");
+  sleep(100);
   $b = Sel("BookId FROM libbook WHERE md5 = '$md5'");
   if (!$b) return $r. "Что-то не получилось. Свяжитесь с администрацией<br>";
   if ($actionid) Update(libactions, "BookId=$b", "ActionId=$actionid");

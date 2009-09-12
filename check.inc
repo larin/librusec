@@ -5,6 +5,15 @@ Global $path, $PP;
 
 function libCheck() {
   switch (arg(1)) { 
+   case fixalias:
+     $sth = SELECT ("* FROM libavtoraliase JOIN libavtor ON(AvtorId=BadId)");
+     while ($a1 = dbf($sth)) {
+       Update(libavtor, "AvtorId=$a1->GoodId", "AvtorId=$a1->BadId");
+     }     
+     $sth = SELECT ("* FROM libavtoraliase JOIN libtranslator  ON(translatorId=BadId)");
+     while ($a1 = dbf($sth)) {
+       Update(libtranslator, "translatorId=$a1->GoodId", "translatorId=$a1->BadId");
+     }     
    case 'md5':
      $sth = SELECT("BookId, libfilename.FileName AS fn, md5 FROM libbook JOIN bookwarrior.updated USING(md5) JOIN libfilename USING(BookId) WHERE FileType <> 'fb2' ");
      while ($a1 = dbf($sth)) {
@@ -63,7 +72,7 @@ function libCheck() {
    return 'batched';
 
     case libCheckLitres: 
-       return libCheckLitres();
+       return libCheckLitres(0);
     case massfail:
       $fh = fopen('massfail', 'r');
       while ($s = fgets($fh)) {

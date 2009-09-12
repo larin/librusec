@@ -739,8 +739,8 @@ function libUnblockMes($book) {
   if (!$book->Blocked) return '';
   $BlockedDays = (int)(31 - libBookDays($book));
   if ($BlockedDays < 0) return '';
-  if ($BlockedDays == 1) return "книга разблокируется до завтра";
-  if ($BlockedDays == 2) return "книга разблокируется послезавтра";
+  if ($BlockedDays == 0) return "книга разблокируется завтра";
+  if ($BlockedDays == 1) return "книга разблокируется послезавтра";
   if ($BlockedDays < 5 || $BlockedDays == 22 || $BlockedDays == 23 || $BlockedDays == 24) return "книга разблокируется через $BlockedDays дня";
   if ($BlockedDays == 21 ) return "книга разблокируется через $BlockedDays день";
   return "книга разблокируется через $BlockedDays дней";

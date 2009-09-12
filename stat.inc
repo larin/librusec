@@ -18,7 +18,7 @@ function libStat($f='', $f2 = '') {
 
   if ($user->uid > 0) $head .= 
 "Общая статистика сайта: <b>2009</b>: <a href=/awstats/>AWStats 2009</a>
-<a href=/awstats/2009.07.html>2009.07</a>
+<a href=/awstats/2009.08.html>2009.08</a> <a href=/awstats/2009.07.html>2009.07</a>
 <a href=/awstats/2009.06.html>2009.06</a> <a href=/awstats/2009.05.html>2009.05</a> <a href=/awstats/2009.04.html>2009.04</a> 
 <a href=/awstats/2009.03.html>2009.03</a> <a href=/awstats/2009.02.html>2009.02</a> <a href=/awstats/2009.01.html>2009.01</a><br>
 <b>2008</b>: <a href=/awstats/2008.12.html>2008.12</a> <a href=/awstats/2008.11.html>2008.11</a> <a href=/awstats/2008.10.html>2008.10</a> 
@@ -63,11 +63,12 @@ function libStat($f='', $f2 = '') {
   );
   set_title($titles[$f]);
 // статистика хранится в кэше, пересчитывается раз в 170 минут, если позволит загрузка сервера.
+
   if ($f == 'w' || $f == 'b' || $f == '24' || $f == 'r') 
     if ($gg = libListBlackGG()) 
       $BGLIST = "JOIN libgenre USING(BookId) WHERE NOT EXISTS(SELECT UserId FROM libuserblackgenre bg WHERE UserId = $user->uid AND libgenre.GenreId = bg.GenreId)";
     elseif(!$user->uid)  
-      $BGLIST = "WHERE NOT Blocked";
+      $BGLIST = "JOIN libbook USING(BookId) WHERE NOT libbook.Blocked";
   if (!$admin_actions[$f] && !$admin && $f != 'my') {
     $cid = "libstat-$f-$f2-".$_GET['page'];
     if ($BGLIST) $cid .= "g$gg";
@@ -82,7 +83,7 @@ function libStat($f='', $f2 = '') {
   
   switch ($f) {
     case 'about':
-      $r = "<p>Основа - свободная CMS Drupal версия 6.9(<a href=http://drupal.org>http://drupal.org</a>) + руссификация интерфейса (<a href=http://drupal.ru>http://drupal.ru</a>) + <a href=/allbooks>модуль Либрусек.</a>.<ol>Установленные модули Друпала:";
+      $r = "<p>Основа - свободная CMS Drupal версия 6.9(<a href=http://drupal.org>http://drupal.org</a>) + русификация интерфейса (<a href=http://drupal.ru>http://drupal.ru</a>) + <a href=/allbooks>модуль Либрусек.</a>.<ol>Установленные модули Друпала:";
       $sth = SELECT ("name FROM `system` WHERE `type` LIKE 'module' AND `status` = 1 ORDER BY 1");
        while ($a1 = dbf($sth)) $r .= "<li>".$a1->name;
       $r .= "</ol>\n

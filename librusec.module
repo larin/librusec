@@ -383,7 +383,7 @@ function librusec_cron() {
     db_query("DELETE FROM `liblog` WHERE Time < '%s' AND BookId = %d", $tm, $a1->BookId);
   }
   db_query('DELETE FROM libtopadvert WHERE Time + 333333 < NOW()'); 
-  libCheckLitres();
+  libCheckLitres(1);
 }
 
 function librusec_update($node) {
