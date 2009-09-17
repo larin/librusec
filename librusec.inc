@@ -57,6 +57,7 @@ function SuperUser() {
 
 function libcanedit($b = 0) {
   Global $user;
+  if ($_SERVER[REQUEST_URI] == '/cron.php') return 1;
   if (!$user->uid) return 0;
   if ($user->roles[4]) return 0;
   if (variable_get('librusec_Mirror', '0')) {
@@ -1104,7 +1105,7 @@ function MakeZipFile($b, $dtp) {
   }
   if ($dtp == 'fb2' || $dtp == '') {
     if (!libGenerateFB2("b/$b.fb2", $r)) 
-      exec ("ln -s b/$b.fb2 \"$r\"");
+      exec ("ln -s /www/b/$b.fb2 \"$r\"");
     exec ("zip -mj \"$zip\" \"$r\"");
   } else {  
     if ($err = MakeFile($b, "b/$b.fb2", $dtp, $r)) {
@@ -1185,9 +1186,10 @@ module_load_include('inc', 'librusec', 'author');
   $in = '/home/litres/litres_uploads/';
   $ou = '/home/litres/done/';
   $tmp = '/home/litres/tmp/';
-  for ($iii = 0; $iii < $cron ? 1 : 3; $iii++)
+  for ($iii = 0; $iii < ($cron ? 1 : 3); $iii++)
   foreach (glob($in.'*.descr') as $filedesc) {
     $zip = substr($filedesc, 0, strlen($filedesc)-5).'fb2.zip';
+    if (!file_exists($zip)) continue;
     $desc1 = $ou.substr($filedesc, strlen($in));
     $book1 = $ou.substr($zip, strlen($in));
     if (file_exists($desc1) && file_exists($book1) && ($iii == 0 || (time() - filemtime($book1) > 3600*12*$iii))) continue;
@@ -1196,13 +1198,12 @@ module_load_include('inc', 'librusec', 'author');
       $desc = file($filedesc);  
       $blocka = $desc[2];
       $q = $cron ? "<br><b>CRON</b> " : "<br><b>$iii</b> ";
-      $q .= date('l jS \of F Y H:i')."<br>";
+      $q .= date('l jS \of F Y H:i')." ";
       $q .= AddFileToLibrusec($fb2, 'fb2', -1, $blocka)."\n";    
       if (file_exists($fb2)) $q .= "<h7>$fb2 не обработался!</h7>\n";
       $fh = fopen('/l/litres.html', 'a');
       fwrite($fh, $q);
       fclose($fh);
-      print $q;
       $r .= $q;
     }      
     if (!file_exists($desc1)) copy($filedesc, $desc1);

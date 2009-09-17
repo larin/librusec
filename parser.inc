@@ -36,7 +36,7 @@ function libParserStart($parser, $E, $attrs) {
     return;
     case 'BODY':
       if ($attrs['name'] == 'notes') $PD->IN['NOTES'] = 1;
-      if ($PD->format == 'head') $PD->done = 1;
+      if ($PD->format == 'head' || $PD->format == 'fbd-head') $PD->done = 1;
     return;
     case 'ANNOTATION':
      return;
@@ -53,7 +53,7 @@ function libParserStart($parser, $E, $attrs) {
       if (!$img) return;
       if (preg_match('/^#(.+)/', $img, $m)) { //картинка внутри файла
         $img = $m[1];
-        if ($PD->format == 'htm') $img = "/i/".($PD->b%100)."/$PD->b/$img";
+        if ($PD->format == 'htm' || $PD->format == 'fbd') $img = "/i/".($PD->b%100)."/$PD->b/$img";
       } 
       if ($img == $PD->cover) return; // обложку не повторяем
       if ($PD->format == 'txt') pp(" [Картинка: $img] ");
@@ -164,7 +164,7 @@ function libParserEnd($parser, $E) {
       $PD->IN['BODY'] = '';
     return;
     case 'HEAD':
-      if ($PD->format == 'head')
+      if ($PD->format == 'head' || $PD->format == 'fbd-head')
         $PD->done = 1;
     case 'ANNOTATION':
       if ($PD->format == 'annotation')
@@ -224,14 +224,20 @@ function libParserData($parser, $E) {
 }
 
 function libRead($b) {
-  if (Sel("FileType FROM libbook WHERE BookId = $b") != 'fb2') return 'Ошибочка вышла';
-  $fb2 = "b/$b.fb2";
+  $filetype = Sel("FileType FROM libbook WHERE BookId = $b");
+  if ($filetype != 'fb2') $fbd = libGetFBD("b.usr/".Sel("FileName FROM libfilename WHERE BookId = $b"));
+  else $fb2 = "b/$b.fb2";
   $html = "b.htm/$b.htm";
   if (SuperUser() || !file_exists($html)) {
     $key = sem_get(14, 30);
     if (!sem_acquire($key)) return;
     if (SuperUser() || !file_exists($html)) {     
-      $err = parsefb2($fb2, $b, 'htm', $html);
+      if ($fb2) {
+        $err = parsefb2($fb2, $b, 'htm', $html);
+      } else {
+        $err = parsefb2($fbd, $b, 'fbd');
+        touch($html);
+      }  
       if (!$err) {
         Global $PD;
         db_query("INSERT INTO libcache (BookId, TOC, Cover) 
@@ -262,11 +268,13 @@ function parsefb2($fb2, $b, $format, $tofile = '') {
   xml_parser_set_option($xml_parser, XML_OPTION_CASE_FOLDING, 0);
   xml_set_element_handler($xml_parser, libParserStart, libParserEnd);
   xml_set_character_data_handler($xml_parser, libParserData);
-  if (!$fp = fopen($fb2, "r")) return "Ошибочка: не открылся файлик $fb2"; 
-
-  while (($data = fread($fp, 40960)) && xml_parse($xml_parser, $data) && !$PD->done && !feof($fp));
+  if ($format == 'fbd-head' || $format == 'fbd') {
+    xml_parse($xml_parser, $fb2);
+  } else {  
+    if (!$fp = fopen($fb2, "r")) return "Ошибочка: не открылся файлик $fb2"; 
+    while (($data = fread($fp, 40960)) && xml_parse($xml_parser, $data) && !$PD->done && !feof($fp));
+  }  
   xml_parser_free($xml_parser); 
-//  if (SuperUser()) {print('<pre>');print_r($PD);exit;}
   if (!$tofile) return;
   
   if (!$fh = fopen($tofile, 'w')) return "Не могу создать файлик $tofile";
@@ -382,3 +390,14 @@ return '';
             }  
             $xml->asXML($fb2);
           } 
+
+
+
+function libGetFBD($f) {
+  if (pathinfo($f, PATHINFO_EXTENSION) != 'zip') return '';
+  if (!is_resource($zip = zip_open($f))) return '';
+  while($zip_entry = zip_read($zip)) 
+    if (pathinfo(zip_entry_name($zip_entry), PATHINFO_EXTENSION) == 'fbd') 
+      return zip_entry_read($zip_entry, zip_entry_filesize($zip_entry));
+  return '';    
+}

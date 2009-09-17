@@ -167,7 +167,7 @@ document.write('<img src=\"http://ad1.edu-all.ru/bb.cgi?cmd=ad&pubid=' + userid 
   $r .= $seqtxt;  if (libcanedit($b)) $r .= " &nbsp; <a href=/b/$b/edit>(исправить)</a> $block";
   $r .= "<br>";
   $img = '';
-  if ($book->FileType == 'fb2') {
+//  if ($book->FileType == 'fb2') {
     if (!$a1 = S("* FROM libcache WHERE BookId = $b")) {
       libRead($b);
       $a1 = S("* FROM libcache WHERE BookId = $b");
@@ -187,7 +187,7 @@ document.write('<img src=\"http://ad1.edu-all.ru/bb.cgi?cmd=ad&pubid=' + userid 
         $img = "<img align=left style='padding: 9px;' $ww src=\"/$img\">"; 
       } else $img = ''; 
     }  
-  }
+//  }
   if ($user->theme != 'mobile')
     $r .= $img."<a href=javascript:show('link1')>(ссылка для форума (BBCode))</a> <a href=javascript:show('link2')>(ссылка для блога (HTML))</a><br>
 <div id=link1 style='position:absolute;left:-4000px'><br><br>".'[url='."$host/b/$b".']<br>[b]'.$tit.'[/b]<br>'.$imgf.'['."/url]<br><br></div>

@@ -314,8 +314,8 @@ function libUpload() {
 <p>Файл <input name=ftpfile size=40>";
     if (arg(2) != 'fb2') {
       $r .= "<p>Тип файла <input size=3 name=filetype> (обязательно)
-<p>Название <input size=25 name=title> (обязательно, если не указано внутри fb2)
-<p>Жанры, через запятую <input name=genre> (если не указан внутри fb2)
+<p>Название <input size=25 name=title> (обязательно, если не указано в fb2 или fbd)
+<p>Жанры, через запятую <input name=genre> (если не указан в fb2 или fbd)
 <p>Год издания <input name=year size=4 maxlength=4>
 <p>Язык (двухбуквенный код) <input name=lang size=2>
 ";
@@ -350,7 +350,7 @@ function libAvtorAddBook($a) {
     $fname = trim($_POST['ftpfile']);
     $tname = "ocr/$fname";
     if (!file_exists($tname)) 
-      if (($arr = glob("ocr/*/$fname")) || ($arr = glob("ocr/$fname.*")) || ($arr = glob("ocr/*/$fname.*")))
+      if (($arr = glob("ocr/*/$fname")) || ($arr = glob("ocr/$fname.*")) || ($arr = glob("ocr/*/$fname.*")) || ($arr = glob("ocr/$fname")))
         $tname = $arr[0];
   } else return "<p><p>Загрузка файла в библиотеку. Для массовой загрузки <a href=/upload>удобнее использовать FTP</a>.
 <p>Файл будет добавлен в собрание ".avl($a).". Если это неправильно, <a href=/upload>выберите другого автора</a>
@@ -546,11 +546,16 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
   $GenreIds = array();  
   $filetype = strtolower ($_POST['filetype']);
   if (!$filetype) $filetype = $ext;
-  $lang = strtolower ($_POST['lang']);
+  $filetype = trim($filetype, '.');
+  $lang = strtolower($_POST['lang']);
   $year = $_POST['year'];
   $title = $_POST['title'];
-  if (!$title && $filetype == 'fb2') 
-    $title = 'from-fb2';
+  if ($filetype != 'fb2') { 
+    $fbd = libGetFBD($f);
+    if ($fbd) $title = 'from-fbd';
+  } else {  
+    if (!$title) $title = 'from-fb2';
+  }  
   if (!$ext || !$title)
     if (preg_match('/([^\/]+)\.([^\.]+)$/',$f,$m)) {
       $fil = $m[1];
@@ -558,7 +563,7 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
       $r .= "fil=$fil;";
     } else {
       $r .= "<p>Непонятное расширение. Используем $filetype"; 
-      $ext=$filetype;
+      $ext = $filetype;
     }
   if (!$filetype) $filetype = strtolower($ext);
   if (!$title) {
@@ -586,9 +591,18 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
     if ($tt = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/BOOK-TITLE'])
       $title = $tt;
     else {
-      print "В FB2 не найдено название книги. Такой FB2 нам не нужен"; 
       unlink($f);
-      exit;
+      return "В FB2 не найдено название книги. Такой FB2 нам не нужен"; 
+    }
+    $genre = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/GENRE'];  
+  } elseif ($fbd) {
+    if ($e = parsefb2($fbd, 0, 'fbd')) return $e;
+    Global $PD;
+    if ($tt = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/BOOK-TITLE'])
+      $title = $tt;
+    else {
+      unlink($f);
+      return "В FB2 не найдено название книги. Такой FB2 нам не нужен"; 
     }
     $genre = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/GENRE'];  
   } else {
@@ -596,7 +610,7 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
       return "Книга уже присутствует в библиотеке Genesis: <a href='http://gen.lib.rus.ec/get?md5=$a1->MD5'>$a1->Title$a1->VolumeInfo</a> ($a1->Author) ";
   }
   if (!$genre) $genre = strtolower($_POST['genre']);
-  if (!$genre) return "Жанр не найден.";
+  if (!$genre) return "Жанр не найден.$filetype";
 //  Global $debug; $debug = 1;
   $GNR = array(architecture=>design,art=>design,art_instr=>design,artists=>design,fashion=>design,graph_design=>design,performance=>dramaturgy,photography=>design,people=>nonf_biography,biography=>nonf_biography,biogr_arts=>nonf_biography,biogr_ethnic=>nonf_biography,biogr_family=>nonf_biography,biogr_historical=>nonf_biography,biogr_leaders=>nonf_biography,biogr_professionals=>nonf_biography,biogr_sports=>nonf_biography,biogr_travel=>nonf_biography,business=>sci_business,biz_accounting=>sci_business,biz_beogr=>nonf_biography,biz_life=>sci_business,biz_careers=>sci_business,biz_economics=>sci_business,biz_finance=>sci_business,biz_international=>sci_business,biz_professions=>sci_business,biz_investing=>sci_business,biz_management=>sci_business,biz_sales=>sci_business,biz_personal_fin=>sci_business,biz_ref=>sci_business,biz_small_biz=>sci_business,child_3=>child_tale,child_4=>child_prose,child_9=>child_prose,child_animals=>adv_animal,child_art=>children,child_computers=>computers,child_edu=>child_education,child_history=>child_prose,child_obsessions=>children,child_people=>children,child_characters=>child_prose,child_ref=>children,child_religion=>religion_rel,child_nature=>child_education,child_series=>children,child_sports=>children,chris_bibles=>religion_rel,chris_pravoslavie=>religion_rel,chris_catholicism=>religion_rel,chris_living=>religion_rel,chris_history=>religion_rel,chris_nlergy=>religion_rel,chris_edu=>religion_rel,chris_evangelism=>religion_rel,chris_fiction=>religion_rel,chris_holidays=>child_prose,chris_jesus=>religion_rel,chris_mormonism=>religion_rel,chris_orthodoxy=>religion_rel,chris_protestantism=>religion_rel,chris_ref=>religion_rel,chris_theology=>religion_rel,chris_devotion=>religion_rel,compusers=>computers,comp_office=>computers,comp_cert=>computers,comp_games=>computers,comp_sci=>computers,comp_db=>comp_db,comp_biz=>computers,comp_graph=>computers,comp_hardware=>comp_hard,comp_microsoft=>computers,comp_networking=>comp_osnet,comp_os=>comp_osnet,comp_programming=>comp_programming,comp_software=>comp_soft,comp_www=>comp_www,cooking=>home_cooking,cook_baking=>home_cooking,cook_can=>home_cooking,cook_art=>home_cooking,cook_drink=>home_cooking,cook_gastronomy=>home_cooking,cook_meals=>home_cooking,cook_natural=>home_cooking,cook_outdoor=>home_cooking,cook_pro=>home_cooking,cook_quick=>home_cooking,cook_ref=>home_cooking,cook_regional=>home_cooking,cook_appliances=>home_cooking,cook_diet=>home_cooking,cook_spec=>home_cooking,cook_veget=>home_cooking,entertainment=>home_entertain,entert_comics=>home_entertain,entert_games=>home_entertain,entert_humor=>home_entertain,entert_movies=>home_entertain,entert_music=>home_entertain,performance=>dramaturgy,nonfiction_pop_culture=>home_entertain,entert_radio=>home_entertain,entert_tv=>home_entertain,gay_biogr=>nonf_biography,history_gay=>nonf_biography,literature_gay=>prose_counter,gay_mystery=>sf_horror,gay_nonfiction=>nonfiction,gay_parenting=>home,gay_travel=>adv_geo,health=>home_health,health_aging=>sci_medicine,health_alt_medicine=>sci_medicine,health_beauty=>home_health,health_cancer=>sci_medicine,health_death=>home_health,health_diets=>home_health,health_dideases=>home_health,health_fitness=>home_health,health_men=>home_health,health_mental=>sci_psychology,health_nutrition=>home_health,health_personal=>home_health,health_psy=>sci_psychology,health_recovery=>home_health,health_ref=>home_health,health_rel=>home_health,health_first_aid=>home_health,health_self_help=>home_health,health_sex=>home_sex,health_women=>home_health,history_africa=>sci_history,history_america=>sci_history,history_ancient=>sci_history,history_asia=>sci_history,history_australia=>sci_history,history_europe=>sci_history,history_study=>sci_history,history_jewish=>sci_history,history_middle_east=>sci_history,histor_military=>sci_history,history_military_science=>sci_history,history_russia=>sci_history,history_usa=>sci_history,history_world=>sci_history,history_gay=>sci_history,home_pets=>home_pets,home_collect=>home_crafts,home_crafts=>home_crafts,home_entertain=>home_entertain,home_expert=>home_diy,home_garden=>home_garden,home_design=>home_diy,home_howto=>home_diy,home_interior_design=>home_diy,home_cottage=>home,home_weddings=>home,horror=>sf_horror,horror_antology=>sf_horror,horror_british=>sf_horror,horror_fantasy=>sf_horror,horror_erotic=>sf_horror,horror_ghosts=>sf_horror,horror_graphic=>sf_horror,horror_occult=>sf_horror,horror_ref=>sf_horror,horror_usa=>sf_horror,horror_vampires=>sf_horror,literature=>prose_classic,literature_books=>prose_classic,literature_british=>prose_classic,literature_classics=>prose_classic,literature_drama=>prose_classic,literature_essay=>prose_classic,literature_adv=>adventure,literature_antology=>prose_classic,literature_erotica=>love_erotica,literature_fairy=>child_tale,literature_saga=>prose_classic,literature_gay=>prose_counter,literature_history=>prose_history,literature_men_advent=>adventure,literature_political=>prose_contemporary,literature_religion=>religion_rel,literature_sea=>adv_maritime,literature_sports=>home_sport,literature_war=>prose_contemporary,literature_western=>adv_western,literature_critic=>prose_history,literature_letters=>nonf_biography,literature_poetry=>poetry,literature_short=>prose_classic,literature_usa=>prose_classic,literature_women=>love_contemporary,literature_world=>prose_classic,literature_rus_classsic=>prose_rus_classic,literature_su_classics=>prose_su_classics,mystery=>det_history,thriller_mystery=>detective,thriller_police=>det_police,thriller=>thriller,nonfiction_avto=>nonfiction,nonfiction_crime=>nonfiction,nonfiction_events=>nonfiction,biz_economics=>sci_business,nonfiction_edu=>science,nonfiction_gov=>science,nonfiction_holidays=>science,nonfiction_law=>sci_juris,nonfiction_philosophy=>sci_philosophy,nonfiction_politics=>nonfiction,nonfiction_social_sci=>science,nonfiction_antropology=>sci_history,science_archaeology=>sci_history,nonfiction_traditions=>nonfiction,nonfiction_demography=>nonfiction,nonfiction_racism=>nonfiction,nonfiction_emigration=>nonfiction,nonfiction_ethnology=>science,nonfiction_folklor=>antique_myths,nonfiction_gender=>science,nonfiction_gerontology=>science,nonfiction_hum_geogr=>science,nonfiction_methodology=>science,nonfiction_philantropy=>nonfiction,nonfiction_pop_culture=>nonfiction,nonfiction_pornography=>home_sex,nonfiction_ref=>reference,nonfiction_research=>science,nonfiction_social_work=>science,nonfiction_sociology=>science,nonfiction_spec_group=>science,nonfiction_stat=>science,health_psy=>sci_psychology,nonfiction_transportation=>nonfiction,nonfiction_true_accounts=>nonfiction,nonfiction_urban=>nonfiction,nonfiction_women=>nonfiction,outdoors_birdwatching=>sci_biology,outdoors_conservation=>nonfiction,outdoors_ecology=>sci_biology,outdoors_ecosystems=>sci_biology,outdoors_env=>sci_biology,outdoors_fauna=>sci_biology,outdoors_field_guides=>ref_guide,outdoors_flora=>sci_biology,outdoors_hiking=>home_crafts,outdoors_hunt_fish=>home_crafts,outdoors_resources=>science,outdoors_nature_writing=>sci_biology,outdoors_outdoor_recreation=>home_sport,outdoors_ref=>sci_biology,outdoors_survive=>home_sport,outdoors_travel=>adv_geo,family=>home,family_adoption=>home,family_aging_parents=>home,family_edu=>home,family_activities=>home,family_health=>home_health,family_relations=>home,family_fertility=>home_health,family_humor=>humor,family_lit_guide=>home,family_parenting=>home_health,family_pregnancy=>home_health,family_ref=>reference,family_special_needs=>home_health,professional_finance=>sci_business,architecture=>design,professional_management=>sci_business,professional_edu=>science,professional_enginering=>sci_tech,professional_law=>sci_juris,professional_medical=>sci_medicine,professional_sci=>sci_tech,references=>reference,ref_almanacs=>ref_ref,biz_ref=>sci_business,ref_careers=>ref_ref,ref_catalogs=>ref_ref,ref_cons_guides=>ref_ref,ref_dict=>ref_ref,ref_edu=>sci_business,ref_encyclopedia=>ref_encyc,ref_etiquette=>reference,ref_langs=>reference,ref_fun=>reference,ref_genealogy=>sci_history,nonfiction_law=>sci_juris,ref_books=>reference,ref_quotations=>reference,ref_study_guides=>ref_ref,ref_words=>reference,ref_writing=>prose_contemporary,religion=>religion_rel,religion_bibles=>religion_rel,religion_buddhism=>religion,Christianity=>religion_rel,religion_earth=>religion,religion_fiction=>religion_rel,religion_hinduism=>religion,religion_islam=>religion,religion_judaism=>religion,religion_new_age=>religion_rel,religion_occult=>religion_esoterics,religion_religious_studies=>religion_rel,religion_spirituality=>religion_esoterics,religion_east=>religion_self,religion_other=>religion,romance=>prose_classic,romance_anthologies=>prose_classic,romance_contemporary=>prose_contemporary,romance_fantasy=>sf_fantasy,romance_sf=>sf,romance_historical=>prose_history,romance_multicultural=>prose_contemporary,romance_regency=>prose_classic,romance_religion=>religion_rel,romance_romantic_suspense=>love_contemporary,romance_series=>prose_contemporary,romance_time_travel=>sf,ref_writing=>prose_contemporary,science=>science,science_agri=>science,science_archaeology=>sci_history,science_astronomy=>science,science_behavioralsciences=>sci_psychology,science_psy=>sci_psychology,science_biolog=>sci_biology,science_chemistry=>sci_chem,science_earth=>science,science_edu=>science,science_evolution=>science,science_measurement=>science,science_history_philosophy=>sci_history,science_math=>sci_math,science_medicine=>sci_medicine,science_eco=>science,science_physics=>sci_phys,science_ref=>science,science_technology=>sci_tech,romance_sf=>sf,romance_fantasy=>sf_fantasy,gaming=>sf,sf_writing=>sf,fantasy_alt_hist=>sf_history,sf_cyber_punk=>sf_cyberpunk,sport=>home_sport,teens_beogr=>nonf_biography,teens_health=>home_sport,teens_history=>adv_history,teens_horror=>sf_horror,teens_literature=>prose_classic,teens_mysteries=>detective,teens_ref=>reference,teens_religion=>religion_rel,teens_school_sports=>home,teens_sf=>sf,teens_tech=>science,teens_series=>child_adv,teens_social=>sci_psychology,travel=>adv_geo,travel_africa=>adv_geo,travel_asia=>adv_geo,travel_australia=>adv_geo,travel_canada=>adv_geo,travel_caribbean=>adv_geo,travel_europe=>adv_geo,travel_guidebook_series=>adv_geo,travel_lat_am=>adv_geo,travel_middle_east=>adv_geo,travel_polar=>adv_geo,travel_spec=>adv_geo,travel_usa=>adv_geo,travel_rus=>adv_geo,travel_ex_ussr=>adv_geo,women_divorce=>home,women_domestic=>home,women_child=>home,women_single=>home);
   foreach (split (',' , $genre) as $gn) {
@@ -619,7 +633,7 @@ function AddFileToLibrusec($f, $ext, $a, $blocka = '') {
     $err++;
   }  else $r .= "<input type=hidden name=filetype value=\"$filetype\">";
   if ($err) return $r . "<p><input type=hidden name=filename value=\"$f\"><p>Год издания <input name=year size=4 maxlength=4 value=$year><p>Язык (двухбуквенный код) <input name=lang value='$lang' size=2><p><input type=submit></form><hr>\n\n";   
-  if (!$title || $title == 'from-fb2') return $r . "<br>Название не найдено";
+  if (!$title || $title == 'from-fb2' || $title == 'from-fbd') return $r . "<br>Название не найдено";
 
 // всё хорошо, добавляем книгу.
   $fs = filesize($f); 
@@ -673,7 +687,7 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
     }  
     $ii++;
   } while (file_exists($nn1));
-  rename ($f, $nn1); 
+  if (!rename ($f, $nn1)) copy($f, $nn1); 
   if (!file_exists($nn1)) return $r. "<p>Не получилось записать файл $f в $nn1";
   $year = $year>0?(integer)$year:$PD->head['FICTIONBOOK/DESCRIPTION/PUBLISH-INFO/YEAR'];;
   if (!$lang) $lang = $PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/LANG'];
@@ -689,12 +703,12 @@ WHERE Title LIKE \"$t%\" AND FileType = '$filetype' AND LastName = \"$ln\" AND N
   $srclang = addslashes($PD->head['FICTIONBOOK/DESCRIPTION/TITLE-INFO/SRC-LANG']);
   $Action = "INSERT INTO libbook (FileSize, FileType, Title, Year, Ver, Lang, FileAuthor, keywords, md5) VALUES ('$fs', '$filetype','$title','$year', '$ver', '$lang', '$nick', '$keywords', '$md5')";
   LogAction ($Action, "Add book","");
-  $actionid = Sel ("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL = \"$Action\" ORDER BY ActionId DESC LIMIT 1" );
-  watchdog('librusec', "SELECT ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL = \"$Action\" ORDER BY ActionId DESC LIMIT 1");
-  if (!$actionid) $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$md5%' ORDER BY ActionId DESC LIMIT 1");
-  sleep(100);
+  $actionid = Sel("ActionId FROM libactions WHERE ActionDesc = 'Add book' AND ActionSQL like '%$md5%' ORDER BY ActionId DESC LIMIT 1");
   $b = Sel("BookId FROM libbook WHERE md5 = '$md5'");
-  if (!$b) return $r. "Что-то не получилось. Свяжитесь с администрацией<br>";
+  if (!$b) {
+    watchdog('librusec', $Action);
+    return $r. "[$Action] Что-то не получилось. Свяжитесь с администрацией<br>";
+  }  
   if ($actionid) Update(libactions, "BookId=$b", "ActionId=$actionid");
   if ($id=addslashes($id)) Insert(libcacheid, "BookId, Id", "$b, '$id'");
   if ($srclang && $srclang != $lang) Insert(libsrclang, "BookId, SrcLang", "%d, '%s'", $b, $srclang);

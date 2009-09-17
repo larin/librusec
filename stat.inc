@@ -13,7 +13,9 @@ function libStat($f='', $f2 = '') {
 <a href=/stat/plo>Плодовитые авторы</a> <br>
 Библиотечное: <a href=/stat/my>Моя работа</a> &nbsp; 
 <a href=/stat/document-author>Авторы файлов</a> &nbsp; 
-<a href=/stat/invalid>Невалидные файлы</a> &nbsp <a href=/stat/tot>Расклад по типам файлов</a>
+<a href=/stat/u>Статистика добавлений</a> &nbsp 
+<a href=/stat/invalid>Невалидные файлы</a> &nbsp 
+<a href=/stat/tot>Расклад по типам файлов</a>
 <br>";
 
   if ($user->uid > 0) $head .= 
@@ -60,6 +62,7 @@ function libStat($f='', $f2 = '') {
     'q'     => 'Оценки файлов',
     'akt'   => 'Список пользователей изменяющих библиотеку',
     'invalid'=> 'Негодные FB2',
+    'u'	     => 'Пополнение',
   );
   set_title($titles[$f]);
 // статистика хранится в кэше, пересчитывается раз в 170 минут, если позволит загрузка сервера.
@@ -72,12 +75,12 @@ function libStat($f='', $f2 = '') {
   if (!$admin_actions[$f] && !$admin && $f != 'my') {
     $cid = "libstat-$f-$f2-".$_GET['page'];
     if ($BGLIST) $cid .= "g$gg";
-    if ($r = libcg($cid, 100000)) return $head.$r.theme('pager');
+    if ($r = libcg($cid, 100000)) return $head.$r;
     $key = sem_get(13, 30);
     if (!sem_acquire($key)) return;
     if ($r = libcg($cid, 100000)) {
       sem_release($key);
-      return $head.$r.theme('pager');
+      return $head.$r;
     }
   }  
   
@@ -121,7 +124,7 @@ function libStat($f='', $f2 = '') {
       }
       $r = libListBlackGenre()."<ul>$r</ul>";
     break;
-
+    
     case 'b':
       if ($BGLIST) {
         $BGLIST .= " AND ";
@@ -139,6 +142,11 @@ function libStat($f='', $f2 = '') {
       $r = libListBlackGenre()."<ul>$r</ul>";
     break;
 
+    case 'u':
+      $sth = SELECT("SUM(1) AS N, substr(Time, 1,7) AS Mes FROM `libbook` GROUP BY 2");
+      while ($a1=dbf($sth)) $r .= "<tr><td>$a1->Mes<td>$a1->N";
+      $r = "<table>$r</table>";
+    break;
     case 'tot': 
       $r =  "<h4>Всего</h4>".Sel ("Count(*) FROM libbook WHERE NOT (Deleted&1)");
       $r .= "<table><tr><th>По типам файлов<th>По языкам<tr><td>";
@@ -401,7 +409,7 @@ function libStat($f='', $f2 = '') {
     break;
   }
   if ($key) sem_release($key);
-  return $head.libcs($cid, $r).theme('pager');
+  return $head.libcs($cid, $r.theme('pager'));
 }
 
 function libAvtorsNames($b) {
