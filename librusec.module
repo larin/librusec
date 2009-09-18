@@ -119,6 +119,7 @@ function librusec_block($op='list', $delta='', $edit = array()) {
     case 'view.polka':
       if (!$maxid = libcg("maxpolkaid")) {
         $maxid = Sel("MAX(Id) FROM libpolka") - 1000;
+        if ($maxid < 1) $maxid = 40000;
         libcs("maxpolkaid", $maxid);
       }
       $limit = variable_get('librusec_annN', 10);

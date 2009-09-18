@@ -401,3 +401,100 @@ function libGetFBD($f) {
       return zip_entry_read($zip_entry, zip_entry_filesize($zip_entry));
   return '';    
 }
+
+function XMLtag($tags) {
+  Static $lastlevel = 0;
+  if (!$tags) return '';
+  list($tag, $level, $option) = explode(' ', $tags, 3);  
+  if ($level != '') $lastlevel = $level;
+  else $level = $lastlevel;
+  $args = func_get_args();
+  array_shift($args); 
+  $value = rtrim(implode($args), "\n");
+  if (!$value && !$option) return '';
+  for ($i = 0; $i < $level; $i++) $s .= ' ';
+  if ($option) $option = ' '.$option;
+  if ($level >= 4) $value = htmlspecialchars($value);
+  if ($value) return "\n$s<$tag$option>$value".($level < 3 || $args[1] || $args[2] || $args[3] ? "\n$s":'')."</$tag>";
+  return "\n$s<$tag$option/>";
+}
+
+function libFDB($b) {
+//  drupal_set_header('Content-Type: text/plain');
+  $b1 = S("* FROM libbook WHERE BookId = %d", $b);
+  if (!$b) return '';
+  for ($sth = SELECT("GenreCode FROM libgenre JOIN libgenrelist USING(GenreId) WHERE BookId = %d", $b);$a1 = dbf($sth);)
+    $genre .= XMLtag('genre 3', $a1->GenreCode);
+  for ($sth = SELECT("SeqName, SeqNumb FROM libseq JOIN libseqname USING(SeqId) WHERE BookId = %d", $b);$a1 = dbf($sth);)
+    $sequence .= XMLtag('sequence 3 name="'.htmlspecialchars($a1->SeqName).'" number="'.$a1->SeqNumb.'"', $a1->GenreCode);
+  for ($sth = SELECT("* FROM libavtorname JOIN libavtor USING(AvtorId) WHERE BookId = %d", $b);$a1 = dbf($sth);)
+    $author .= XMLtag('author 3', 
+      XMLtag('first-name 4', $a1->FirstName), 
+      XMLtag('middle-name', $a1->MiddleName), 
+      XMLtag('last-name', $a1->LastName), 
+      XMLtag('nickname', $a1->NickName), 
+      XMLtag('home-page', $a1->Homepage), 
+      XMLtag('email', $a1->Email), 
+      XMLtag('id', $a1->AvtorId) 
+  );
+  for ($sth = SELECT("* FROM libavtorname JOIN libtranslator ON(AvtorId=TranslatorId) WHERE BookId = %d", $b);$a1 = dbf($sth);)
+    $author .= XMLtag('translator 3', 
+      XMLtag('first-name 4', $a1->FirstName), 
+      XMLtag('middle-name', $a1->MiddleName), 
+      XMLtag('last-name', $a1->LastName), 
+      XMLtag('nickname', $a1->NickName), 
+      XMLtag('home-page', $a1->Homepage), 
+      XMLtag('email', $a1->Email), 
+      XMLtag('id', $a1->AvtorId) 
+  );
+  if (!$cover = Sel("Cover FROM libcache WHERE BookId = $b")) {
+    $nid = Sel("nid FROM libbnode WHERE BookId = $b");
+    if ($nid) $vid = Sel("MAX(vid) FROM node_revisions WHERE nid = $nid");
+    if ($vid) $cover = Sel("filepath FROM `upload` JOIN files USING(fid) WHERE `vid` = $vid AND filemime LIKE 'image%'");
+  }
+  $cover = ltrim($cover, '/');
+  if ($cover && file_exists($cover)) {
+    $imagetype = pathinfo($cover, PATHINFO_EXTENSION);
+    if ($imagetype == 'jpg') $contenttype = 'image/jpeg';  
+    else $contenttype = 'image/'.$imagetype;  
+    $coverfile = htmlspecialchars(pathinfo($cover, PATHINFO_BASENAME));
+    $binary = 'binary 1 id="'.$coverfile.'" content-type="'.$contenttype.'"';
+    $coverpage = XMLtag('coverpage', '<image l:href="#'.$coverfile.'"/>');
+  }  
+  $ann = trim(Sel("body FROM node_revisions JOIN libbnode USING(nid) WHERE BookId = %d ORDER BY vid DESC", $b));
+  if (strncmp($ann, '<p>', 3) && strncmp($ann, '<P>', 3)) $ann = "<p>$ann</p>";
+  return '<?xml version="1.0" encoding="utf-8"?>'.
+  XMLtag('FictionBook 0 xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink"', 
+    XMLtag('description 1', 
+      XMLtag('title-info 2', 
+        $genre, 
+        $author, 
+        XMLtag('book-title 3', $b1->Title), 
+        XMLtag('annotation', $ann), 
+        XMLtag('keywords', $b1->keywords),
+        ($b1->Year ? XMLtag("date 3", $b1->Year) : ''),
+        $coverpage,
+        XMLtag('lang', $b1->Lang),
+        XMLtag('src-lang', Sel("SrcLang FROM libsrclang WHERE BookId = %d", $b)),
+        $translator, 
+        $sequence
+      ),
+      XMLtag('src-title-info 2'),
+      XMLtag('document-info 2', 
+        XMLtag('author 3', XMLtag('nickname', 'robot') ),
+        XMLtag('program-used'),
+        XMLtag('date'),
+        XMLtag('src-url'),
+        XMLtag('src-ocr'),
+        XMLtag('id', "LibrusecId-$b"),
+        XMLtag('version', 1),
+        XMLtag('history'),
+        XMLtag('publisher')
+      ),
+      XMLtag('publish-info 2'),
+      XMLtag('custom-info 2 info-type="librusec-id"', $b)
+    ),
+    XMLtag('body 1', ''),
+    XMLtag($binary, "\n", base64_encode(file_get_contents($cover)))
+  );
+}

@@ -110,6 +110,10 @@ document.write('<img src=\"http://ad1.edu-all.ru/bb.cgi?cmd=ad&pubid=' + userid 
     case 'lrf':
     case 'java':
       return libDownloadBook($book, arg(2));
+    case 'fbd':  
+      drupal_set_header('Content-Type: text/plain');
+      print libFDB($b);
+    exit;  
   } 
 
   if ($f = arg(2)) {

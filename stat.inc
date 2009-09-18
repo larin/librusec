@@ -97,7 +97,7 @@ function libStat($f='', $f2 = '') {
     break;
 
     case 'w':
-      $sth = SELECT ("SUM(1) as Num, BookId FROM liblog as l $BGLIST GROUP BY 2 ORDER BY 1 DESC LIMIT 200");
+      $sth = SELECT("/*stat/w*/ SUM(1) as Num, BookId FROM liblog as l $BGLIST GROUP BY 2 ORDER BY 1 DESC LIMIT 200");
       while ($a1=dbf($sth)) {
         $b = $a1->BookId;
         $n = $a1->Num + Sel("SUM(1) FROM libreaded WHERE BookId = $b");

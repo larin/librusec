@@ -383,7 +383,7 @@ function libAvtorAddBook($a) {
   if ($filetype == 'exe' || $filetype == 'com') return "Запретный тип файла.";
   $tn1 = translitcyr($tname);
   if (!$tn1) return "Непонятки с названием файла. Перезалейте.";
-  if ($tn1 !== $tname && !rename ($tname, $tn1)) 
+  if ($tn1 !== $tname && !rename ($tname, $tn1) && !copy($tname, $tn1)) 
     return "Ошибка переименования файла.";
   $tname = $tn1;
   $dir = "ocr/Z$user->uid";      

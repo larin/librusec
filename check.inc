@@ -5,8 +5,6 @@ Global $path, $PP;
 
 function libCheck() {
   switch (arg(1)) { 
-   case fbd:
-     return libFDB(arg(2));
    case fixalias:
      $sth = SELECT ("* FROM libavtoraliase JOIN libavtor ON(AvtorId=BadId)");
      while ($a1 = dbf($sth)) {
@@ -711,72 +709,3 @@ $min_memory_needed = $thread_usage + $global_buffer;
   echo "<tr><td><center<b>" . t('Read Rnd Buffer Size : ') . $memory_vars['read_rnd_buffer']->Value . "</b></center></td></tr>";
 }
 
-function XMLtag($tags) {
-  Static $lastlevel = 0;
-  list($tag, $level, $option) = explode(' ', $tags);  
-  if ($level) $lastlevel = $level;
-  else $level = $lastlevel;
-  $args = func_get_args();
-  array_shift($args); 
-  $value = rtrim(implode($args), "\n");
-  if (!$value && !$option) return '';
-  for ($i = 0; $i < $level; $i++) $s .= ' ';
-  if ($option) $option = ' '.$option;
-  return "\n$s<$tag$option>$value".($level < 3 || $args[1] ? "\n$s":'')."</$tag>";
-}
-
-function libFDB($b) {
-  $b1 = S("* FROM libbook WHERE BookId = %d", $b);
-  if (!$b) return "Книга '$b' не обнаружена.";
-  
-  for ($sth = SELECT("GenreCode FROM libgenre JOIN libgenrelist USING(GenreId) WHERE BookId = %d", $b);$a1 = dbf($sth); $genre .= XMLtag('genre 3', $a1->GenreCode));
-  for ($sth = SELECT("* FROM libavtorname JOIN libavtor USING(AvtorId) WHERE BookId = %d", $b);$a1 = dbf($sth);)
-    $author .= XMLtag('author 3', 
-      XMLtag('first-name 4', $a1->FirstName), 
-      XMLtag('middle-name', $a1->MiddleName), 
-      XMLtag('last-name', $a1->LastName), 
-      XMLtag('nickname', $a1->NickName), 
-      XMLtag('home-page', $a1->Homepage), 
-      XMLtag('email', $a1->Email), 
-      XMLtag('id', $a1->AvtorId) 
-  );
-
-  drupal_set_header('Content-Type: text/plain');
-  print '<?xml version="1.0" encoding="windows-1251"?>'.
-  XMLtag('FictionBook 0 xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"', 
-    XMLtag('description 1', 
-      XMLtag('title-info 2', 
-        $genre, 
-        $author, 
-        XMLtag('book-title 3', $b1->Title), 
-        XMLtag('annotation', Sel("body FROM node_revisions JOIN libbnode USING(nid) WHERE BookId = %d ORDER BY vid DESC", $b)), 
-        XMLtag('keywords', $b1->keywords),
-        ($b1->Year ? XMLtag("date 3 value=$b1->Year", $b1->Year) : ''),
-        $coverpage,
-        XMLtag('lang', $b1->lang),
-        XMLtag('src-lang', Sel("SrcLang FROM libsrclang WHERE BookId = %d", $b)),
-        $translator, 
-        $sequence
-      ),
-      XMLtag('src-title-info 2'),
-      XMLtag('document-info 2', 
-        XMLtag('author 3'),
-        XMLtag('program-used'),
-        XMLtag('date'),
-        XMLtag('src-url'),
-        XMLtag('src-ocr'),
-        XMLtag('id'),
-        XMLtag('version'),
-        XMLtag('history'),
-        XMLtag('publisher')
-      ),
-      XMLtag('publish-info 2'),
-      XMLtag('custom-info 2', XMLtag('librusec-id 3', $b))
-    ),
-    XMLtag('body 1', ''),
-    XMLtag('binary 1 id="cover.jpg" content-type="image/jpeg"', "\n", 'asdfgasdgadfgasdgasdg')
-  );
-
- 
-  exit;
-}

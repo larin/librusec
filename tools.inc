@@ -58,7 +58,7 @@ function libNew() {
   } else {
     $BGLIST = 'WHERE';
   }   
-  $CacheFile = 'cache/new/'.($sa?'ann.':'').($rd?'rd.':'').($asql?'anonin.':'').$sr."p$pg$lng$gg.html";
+  $CacheFile = 'cache/new/'.md5(($sa?'ann.':'').($rd?'rd.':'').($asql?'anonin.':'').$sr."p$pg$lng$gg").".html";
   if ($fh = libOpenCacheFile($CacheFile, 1200)) {
 //    $nn = Sel("count(*) FROM libbook WHERE NOT (Deleted&1) $lsql $asql");
     $nn = 100000;
