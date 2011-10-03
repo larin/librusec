@@ -1,0 +1,413 @@
+<?php
+/* $Id$ */
+
+/*
+Основной файл библиотечного модуля. Кода практически не содержит. 
+Почти всё вынесено в отдельные файлики. 
+Общие функции и обёртки - librusec.inc.
+
+Распространяется под GPL. Вопросы и консультации - lib@rus.ec, исключительно на русском языке.
+*/
+
+include_once drupal_get_path('module', 'librusec').'/librusec.inc';
+// дефалты
+define('libPP', 50);  //книг на экран, без аннотаций
+define('libPPa', 25);  //книг на экран, с аннотациями
+define('NetPrav', 'У вас нет доступа к этому месту. Извините. <p>Некоторые возможности доступны только зарегистрированным несколько дней назад пользователям. Попробуйте зарегистрироваться и зайти через недельку.', 1);
+//друпальные хуки
+function librusec_init() {
+  Global $user;
+  if (arg(1) != 'rss' && arg(2) != 'rss') {
+    $p = drupal_get_path('module', 'librusec');
+    drupal_add_js($p.'/librusec.js');
+    drupal_add_css($p.'/librusec.css');
+  }  
+  if (arg(2) == 'read')
+    drupal_add_css($p.'/book.css');
+
+  if ($_SERVER['HTTP_HOST'] == 'pda.lib.rus.ec')  $user->theme = 'mobile';  
+
+  if ($user->theme != 'mobile')
+    foreach (glob("agrey/*.js") as $file) 
+      drupal_add_js($file);     
+}
+
+function librusec_node_info() {
+  return array(  
+    'adesc' => array('name' => 'Описание автора', 'module' => 'librusec',  'description' => "Биография и библиография", 'has_body' => 1, 'has_title' => 1, 'min_word_count' => 11),
+    'bdesc' => array('name' => 'Описание книги',  'module' => 'librusec',  'description' => "Аннотация", 'has_body' => 1, 'has_title' => 1, 'min_word_count' => 11)
+  );
+}
+
+function librusec_perm() {
+  return array('читать книги', 'выкачивать помногу', 'закачивать', 'исправлять описания', 'исправлять книги', 'пользоваться полкой', 'библиотекарь');
+} 
+
+function librusec_access($op, $node) {
+  if ($op == "view") return user_access('читать книги');
+  return user_access('исправлять описания');
+}
+
+Global $buke, $bukr;    
+$buke = array('Aa','Bb','V','Gg','D','E','Zh','Z','I','Y','K','L','M','N','O','P','R','Ss','T','U','F','H','Tz','Ch','Sh','Sz','Ee','Yu','Ya','Other');
+$bukr = array('А','Б','В','Г','Д','Е','Ж', 'З','И','Й','К','Л','М','Н','О','П','Р','С','Т','У','Ф','Х', 'Ц', 'Ч', 'Ш', 'Щ', 'Э', 'Ю', 'Я','Прочее');
+
+function librusec_menu() {
+
+//настройка
+  $items['admin/settings/librusec'] = array('title' => 'Настройка Либрусека', 'page callback' => 'libSettings', 'access arguments' => array('библиотекарь'), 'description' => 'Настройки общих для всех пользователей параметров библиотеки');
+
+//основные входы
+  $items['a'] = array('title' => 'Авторы', 'page callback' => 'libAvtor','access arguments' => array('читать книги'), 'file' => 'author.inc', 'weight' => -3);
+  $items['b'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc', 'weight' => -2);
+  $items['g'] = array('title' => 'Жанры',  'page callback' => 'libGenre','access arguments' => array('читать книги'), 'file' => 'genre.inc', 'weight' => -4);
+  $items['s'] = array('title' => 'Сериалы','page callback' => 'libSeq',  'access arguments' => array('читать книги'), 'file' => 'tools.inc', 'weight' => 1);
+
+//синонимы
+  $items['author'] = array('title' => 'Авторы', 'page callback' => 'libAvtor','access arguments' => array('читать книги'), 'file' => 'author.inc',  'type' => MENU_CALLBACK);
+  $items['book'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc',  'type' => MENU_CALLBACK);
+  $items['books'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc',  'type' => MENU_CALLBACK);
+  $items['genre'] = array('title' => 'Жанры',  'page callback' => 'libGenre','access arguments' => array('читать книги'), 'file' => 'genre.inc',  'type' => MENU_CALLBACK);
+  $items['sequence'] = array('title' => 'Сериалы','page callback' => 'libSeq',  'access arguments' => array('читать книги'), 'file' => 'tools.inc',  'type'  => MENU_CALLBACK);
+  $items['av'] = array('title' => 'Авторы', 'page callback' => 'libAvtor','access arguments' => array('читать книги'), 'file' => 'author.inc', 'type' => MENU_CALLBACK);
+  $items['bo'] = array('title' => 'Книги', 'page callback' => 'libBook', 'access arguments' => array('читать книги'), 'file' => 'book.inc', 'type' => MENU_CALLBACK);
+  $items['ge'] = array('title' => 'Жанры',  'page callback' => 'libGenre','access arguments' => array('читать книги'), 'file' => 'genre.inc', 'type' => MENU_CALLBACK);
+  $items['se'] = array('title' => 'Сериалы','page callback' => 'libSeq',  'access arguments' => array('читать книги'), 'file' => 'tools.inc', 'type' => MENU_CALLBACK);
+
+//дополнительные возможности
+  $items['polka']    = array('title' => 'Книжная полка', 'page callback' => 'libPolka', 'access arguments' => array('читать книги'), 'file' => 'polka.inc', 'weight' => 1); 
+  $items['download'] = array('title' => 'Выкачка всего', 'page callback' => 'libDownload','access arguments' => array('выкачивать помногу'), 'file' => 'tools.inc', 'weight' => 10);
+  $items['new']      = array('title' => 'Последние поступления', 'page callback' => 'libNew','access arguments' => array('читать книги'), 'file' => 'tools.inc', 'weight' => -5);
+  $items['donate']   = array('title' => 'Оплата', 'page callback' =>'libDonate','access arguments' => array('читать книги'), 'file' => 'donate.inc', 'weight' => 1);
+  $items['stat']     = array('title' => 'Статистика', 'page callback' =>'libStat','access arguments' => array('читать книги'), 'file' => 'stat.inc', 'weight' => 1);
+  $items['booksearch'] = array('title' => 'Поиск книг', 'page callback' =>'libSearch','access arguments' => array('читать книги'), 'file' => 'search.inc', 'weight' => 1);
+  $items['list'] = array('title' => 'Фильтр-список', 'page callback' =>'libList','access arguments' => array('читать книги'), 'file' => 'list.inc', 'weight' => 1);
+  $items['upload'] = array('title' => 'Добавление книги', 'page callback' =>'libUpload','access arguments' => array('закачивать'), 'file' => 'author.inc');
+  $items['addbook'] = array('title' => 'Добавление книги', 'page callback' =>'libUpload','access arguments' => array('закачивать'), 'file' => 'author.inc');
+
+  $items['booklib'] = array('title' => 'SU.BOOKS', 'page callback' =>'libBookLib','access arguments' => array('читать книги'), 'file' => 'booklib.inc');
+
+// внутренние входы
+  $items['err404']   = array('title' => '404', 'page callback' =>'lib404', 'access arguments' => array('читать книги'), 'file' => '404.inc', 'type' => MENU_CALLBACK);
+  $items['makebooklist']   = array('title' => 'AJAX booklist', 'page callback' =>'libAJAXlist', 'access arguments' => array('читать книги'), 'file' => 'list.inc', 'type' => MENU_CALLBACK);
+  $items['mass']   = array('title' => 'Массовая обработка', 'page callback' =>'libMass', 'access arguments' => array('выкачивать помногу'), 'file' => 'mass.inc', 'type' => MENU_CALLBACK);
+  $items['check'] = array('title' => 'Проверки', 'page callback' =>'libCheck', 'access arguments' => array('библиотекарь'), 'file' => 'check.inc', 'type' => MENU_CALLBACK);
+  $items['tools'] = array('title' => 'Всякое', 'page callback' =>'libTools', 'access arguments' => array('исправлять книги'), 'file' => 'tools.inc', 'type' => MENU_CALLBACK);
+  $items['install'] = array('title' => 'Установка зеркала', 'page callback' =>'libInstall','access arguments' => array('читать книги'), 'file' => 'tools.inc','type' => MENU_CALLBACK);
+
+//буквы
+Global $buke, $bukr;
+  for ($i = 0; $buke[$i]; $i++)
+    $items[$buke[$i]] = array('title' => $bukr[$i], 'page callback' => 'libLetter', 'page arguments'=>array($bukr[$i]), 'access arguments' => array('читать книги'), 'file' => 'list.inc', 'type' => MENU_CALLBACK);
+  return $items;
+}
+
+function librusec_block($op='list', $delta='', $edit = array()) {
+  Global $buke, $bukr, $user;    
+  $u = $user->uid;
+  if ($op == 'list') 
+    return array('polka' =>      array ('info' => 'Впечатления о книгах', 'weight' => 10, 'status' => 1, 'region' => 'right'),
+                 'abc'   =>      array ('info' => 'Линейка буковок',      'weight' => -6, 'status' => 1, 'region' => 'top'),
+                 'booksearch' => array ('info' => 'Поиск книг',           'weight' => -5, 'status' => 1, 'region' => 'right'),
+                 'new' =>        array ('info' => 'Новые книги',           'weight' => 5, 'status' => 1, 'region' => 'right'),
+                 'bestb' =>      array ('info' => 'Популярные книги',      'weight' => 8, 'status' => 1, 'region' => 'right'),
+                 'besta' =>      array ('info' => 'Популярные авторы',     'weight' => 7, 'status' => 1, 'region' => 'right'),
+                 'bestw' =>      array ('info' => 'Топ недели',            'weight' => 6, 'status' => 1, 'region' => 'right'),
+                 );
+
+  switch ("$op.$delta") {
+    case 'view.polka':
+      if (!$maxid = libcg("maxpolkaid")) {
+        $maxid = Sel("MAX(Id) FROM libpolka") - 1000;
+        if ($maxid < 1) $maxid = 40000;
+        libcs("maxpolkaid", $maxid);
+      }
+      $limit = variable_get('librusec_annN', 10);
+      if ($limit < 5) $limit = 10;
+      if ($u) {
+        $mode = Sel("bw FROM {bwlist} WHERE uid = %d AND uid2 = 0", $u);
+        $gg = libListBlackGG();
+      }
+      $cid = "blockpolka$gg";
+      $fields = "BookId, libpolka.UserId AS UserId, Text, Time";        
+      if ($gg) {
+        $where = "LEFT JOIN libgenre USING(BookId) LEFT JOIN libuserblackgenre bg USING(GenreId) WHERE (isnull(bg.UserId) OR bg.UserId != $u) AND libpolka.Id > $maxid AND";
+        $limit = " Text != '' AND Flag = '' GROUP BY libpolka.BookId ORDER BY libpolka.ID DESC LIMIT ".$limit; 
+      } else {
+        $where = "WHERE libpolka.Id > $maxid AND";
+        $limit = " Text != '' AND Flag = '' ORDER BY ID DESC LIMIT ".$limit; 
+      } 
+      if ($mode == 'w') {
+        $sth = SELECT("$fields FROM libpolka JOIN {bwlist} ON (libpolka.UserId=uid2) $where uid=%d AND bw='w' AND $limit", $u);
+        $cid .= 'b'.$u;
+      } elseif ($mode == 'b') {
+        $bl .= bwlist_makewhere('libpolka.UserId');
+        if ($bl) $limit = "$bl AND $limit"; 
+        $sth = SELECT("$fields FROM libpolka $where $limit");
+        $cid .= 'b'.$u;
+      } else {
+        $sth = SELECT("$fields FROM libpolka $where $limit");
+      } 
+      if (!$r) {
+        if ($gg) $r = "<small><small>".libListBlackGenre()."</small></small>";
+        while ($a1 = db_fetch_object($sth)) {
+          $u = $a1->UserId;
+          $username = Sel("name FROM users WHERE uid = $u");
+          $book = Sel("Title FROM libbook WHERE BookId = %d", $a1->BookId);
+          $a = Sel("AvtorId FROM libavtor WHERE BookId = %d", $a1->BookId);
+          $an = Sel("LastName FROM libavtorname WHERE AvtorId = %d", $a);
+          $t = preg_replace('/\n/', '<br>', stripslashes($a1->Text));
+          $r .= bwlist_icons($u)."<b><a href=/polka/show/$u>$username</a></b> ".
+              "про <a href=/a/$a>$an</a>: <a href=/b/$a1->BookId>$book</a><br>$t<hr>\n";
+        }   
+        libcs($cid, $r, polka);
+      }  
+      $r .= "<a href=/polka/show/all>Все впечатления</a>";
+    return array ('subject' => '<a href=/polka/show/all>Впечатления о книгах</a>', 'content' => $r, 'cache' => BLOCK_CACHE_PER_USER);
+        
+    case 'configure.polka':
+      return array('items' => array(
+        '#type' => 'select', 
+        '#title' => 'Количество аннотаций', 
+        '#options' => array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20), 
+        '#default_value' => variable_get('librusec_annN', 10)));
+
+    case 'save.polka':
+      variable_set('librusec_annN', $edit['items']); 
+    return;  
+
+    case 'view.abc': 
+        $r = "<a href=/a/all>[Все]</a> ";
+        for ($i = 0; $buke[$i]; $i++) 
+          $r .= "<a href='/$buke[$i]'>[$bukr[$i]]</a> "; 
+    return array ('content' => $r);
+      
+    case 'view.booksearch':
+      return array ('content' => "<form action=/booksearch>Поиск книг: <input name=ask value='$asc'><input type=submit value='искать!'></form>");
+      
+    case 'view.besta':
+    case 'view.bestb':
+    case 'view.bestw':
+    case 'view.new':
+      include_once drupal_get_path('module', 'librusec').'/stat.inc';
+      return array('content' => libstatblock($delta));
+  }
+}
+
+function librusec_view($node, $teaser = FALSE, $page = FALSE) {
+  $node = node_prepare($node, $teaser);
+  if ($nid = $node->nid) 
+  if ($node->type == 'adesc') {
+    $id = Sel('AvtorId FROM libanode WHERE nid = %d', $nid);
+    if (!$id) {
+      if ($id = 1*$node->title) {
+        $tit = db_result(db_query("SELECT CONCAT_WS(' ', FirstName, MiddleName, LastName) FROM libavtorname WHERE AvtorId = %d", $id));
+        db_query("INSERT INTO libanode (nid, AvtorId) VALUES (%d, %d)", $nid, $id);
+        db_query("UPDATE {node} SET title = '%s' WHERE nid = %d", $tit, $nid);
+        db_query("UPDATE {node_revisions} SET title = '%s' WHERE nid = %d", $tit, $nid);
+      }  
+    }
+    if ($id and !arg(2)) drupal_goto("a/$id"); 
+    if ($id && !$tit)
+      $tit = Sel("CONCAT_WS(' ', FirstName, MiddleName, LastName) FROM libavtorname WHERE AvtorId = %d", $id);
+    if ($tit) {
+      $link = "<a href=/a/$id>$tit</a>";
+    }
+  } elseif ($node->type == 'bdesc') {   
+    $id = Sel("BookId FROM libbnode WHERE nid = %d", $nid);
+    if (!$id) {
+      if ($id = 1*$node->title) {
+        $tit = Sel("Title FROM libbook WHERE BookId = %d", $id);
+        db_query("INSERT INTO libbnode (nid, BookId) VALUES (%d, %d)", $nid, $id);
+        db_query("UPDATE {node} SET title = '%s' WHERE nid = %d", $tit, $nid);
+        db_query("UPDATE {node_revisions} SET title = '%s' WHERE nid = %d", $tit, $nid);
+      }  
+    }
+    if ($id and !arg(2)) drupal_goto("b/$id"); 
+    if ($id && !$tit)
+      $tit = db_result(db_query("SELECT Title FROM libbook WHERE BookId = %d", $id));
+    if ($tit) {
+      if (arg(0) != 'taxonomy') $link = "<a href=/b/$id>".check_plain($tit)."</a>";
+      $node->title = $tit;
+    }
+  } 
+  if ($link) $node->content['tit'] = array('#weight' => -10, '#value' => $link);
+  return $node;
+}
+
+function librusec_form(&$node, &$param) {
+  $nid = $node->nid;
+  $id = arg(3);
+  if (!$nid && $id) {
+    if ($node->type == 'adesc') {
+      $tt = 'a';
+      $nid = db_result(db_query("SELECT nid FROM libanode WHERE AvtorId = %d", $id));
+      if ($nid) {
+        $anid = db_result(db_query("SELECT nid FROM node_revisions WHERE nid = %d", $nid));
+        if (!$anid) { // имеем удаленное описание автора; удаляем из libanode
+          db_query("DELETE FROM libanode WHERE nid = %d", $nid);
+        } else {
+          drupal_goto("node/$nid/edit"); // живое описание; переход к редактированию
+        }
+      } 
+    }
+    if ($node->type == 'bdesc') {
+      $tt = 'a';
+      $nid = db_result(db_query("SELECT nid FROM libbnode WHERE BookId = %d", $id));
+      if ($nid) drupal_goto("node/$nid/edit");
+    }
+  }  
+  if ($node->type == 'adesc') {
+    if (!$id) $id = db_result(db_query("SELECT AvtorId FROM libanode WHERE nid = %d", $nid));
+    if (!$id) $id = $node->title*1;
+    if ($id) {
+      $name = db_result(db_query("SELECT CONCAT_WS(' ', FirstName, MiddleName, LastName) FROM libavtorname WHERE AvtorId = $id"));
+      $link = "<a href=/a/$id>$name</a>";
+    }  
+  } elseif ($node->type == 'bdesc') {
+    if (!$id) $id = db_result(db_query("SELECT BookId FROM libbnode WHERE nid = %d", $nid));
+    if (!$id) $id = $node->title*1;
+    if ($id) {
+      $name = db_result(db_query("SELECT Title FROM libbook WHERE BookId = $id"));
+      $link = "<a href=/b/$id>$name</a>";
+    }  
+  } else {
+    return;
+  }
+  if ($id) {
+    $form['title'] = array ('#type' => 'hidden', '#value' => $id);
+    set_title("$name - описание");
+    $form['body'] = array(
+      '#weight' => -9,
+      '#type' => 'textarea',
+      '#title' => '',
+      '#default_value' => $node->body,
+      '#required' => 1
+    );
+    $form['filter'] = filter_form($node->format);
+    $node->promote = 0;
+    $node->title = $id;
+  }  
+  return $form;
+}
+
+function libSettings() {
+  return drupal_get_form('librusec_settings_form');
+}
+
+function librusec_settings_form() {
+  $form['PP'] = array('#type' => 'textfield', '#title' => 'Книжек без аннотаций на страницу', '#size' => 2, '#maxlength' => 4, '#default_value' => variable_get('librusec_PP', libPP));
+  $form['PPa'] = array('#type' => 'textfield', '#title' => 'Книжек с аннотациями на страницу', '#size' => 2, '#maxlength' => 4, '#default_value' => variable_get('librusec_PPa', libPPa));
+  $form['ShowEN'] = array('#type' => 'checkbox', '#title' => 'Показывать иноязычные книги незарегистрированным пользователям и поисковикам','#default_value' => variable_get('librusec_ShowEN', ''));
+  $form['Server'] = array('#type' => 'textfield', '#title' => 'Редиректить за отсутствующими книгами','#default_value' => variable_get('librusec_mans', 'http://librusec.org/'));
+  $form['Convert'] = array('#type' => 'checkbox', '#title' => 'Включить конверторы','#default_value' => variable_get('librusec_Convert', 0));
+  $form['Mirror'] = array('#type' => 'checkbox', '#title' => 'Режим зеркала','#default_value' => variable_get('librusec_Mirror', 0));
+  $form['submit'] = array('#type' => 'submit', '#value' => 'Сохранить');
+  return $form;
+}
+
+function librusec_settings_form_validate($form_id, $form_values) {
+  if (!1*$form_values['values']['PP']) {
+    form_set_error('PP', 'Введите число больше нуля.');
+  }
+  if (!1*$form_values['values']['PPa']) {
+    form_set_error('PPa', 'Введите число больше нуля.');
+  }
+}
+
+function librusec_settings_form_submit($form_id, $form_values) {
+  variable_set('librusec_PP', 1*$form_values['values']['PP']);
+  variable_set('librusec_PPa', 1*$form_values['values']['PPa']);
+  variable_set('librusec_ShowEN', 1*$form_values['values']['ShowEN']);
+  variable_set('librusec_mans', $form_values['values']['Server']);
+  variable_set('librusec_Convert', $form_values['values']['Convert']);
+  variable_set('librusec_Mirror', $form_values['values']['Mirror']);
+  drupal_set_message("Настройки библиотеки сохранены");
+}
+
+function librusec_search($op = 'search', $keys = null) {
+  switch ($op) {
+    case 'name': return 'поиск книг';
+    case 'search':
+      $results = array();
+      if ($keys = addslashes(trim($keys))) {
+        $sth = db_query("SELECT BookId, Title FROM libbook WHERE Title like '$keys%' AND NOT Deleted&1");
+        while ($a1 = db_fetch_object($sth)) {
+          $results[] = array('link' => url('b/'. $a1->BookId), 'title' => $a1->Title);
+        }  
+      }
+      return $results;
+  }
+}
+
+function librusec_user($op, &$edit, &$u) {
+  if ($op != 'view') return;
+  if (($u->uid > 0 && (Sel("uid FROM libdonations WHERE uid = $u->uid") || Sel("uid FROM libavtorname WHERE uid = $u->uid")))) 
+  $u->content['summary']['libDonate'] =  array(
+      '#type' => 'user_profile_item',
+      '#title' => t('Платежи'),
+      '#value' => "<a href='/donate/stat/user/$u->uid'>Платежи</a>"
+  );
+  if (user_access('библиотекарь')) 
+  $u->content['summary']['lib1'] =  array(
+      '#type' => 'user_profile_item',
+      '#title' => t('Деятельность'),
+      '#value' => "<a href='/stat/edit/".urlencode($u->name)."'>Просмотр работы</a>"
+  );
+  $u->content['summary']['comments'] =  array(
+      '#type' => 'user_profile_item',
+      '#title' => t('Деятельность'),
+      '#value' => "<a href=/user/$u->uid/track/comments>Посмотреть последние комментарии</a>"
+  );
+  $u->content['summary']['lib'] =  array(
+      '#type' => 'user_profile_item',
+      '#title' => t('Книжная полка'),
+      '#value' => "<a href=/polka/show/$u->uid>Оценённые книги</a>"
+  );
+  if ($a1 = db_fetch_object(db_query("SELECT * FROM `libavtorname` WHERE uid = %d", $u->uid))) {
+    $u->content['summary']['lib2'] =  array(
+      '#type' => 'user_profile_item',
+      '#title' => t("Страничка писателя"),
+      '#value' => "<a href=/a/$a1->AvtorId>$a1->FirstName $a1->LastName</a>"
+  );
+  }
+}
+
+function librusec_cron() {
+  if (LA() > 3) return;
+  $tm = Sel("SUBDATE(NOW(), 7)");
+  $sth = SELECT("CONCAT(substr(time,3,2),substr(time,6,2)) AS Mes, BookId, SUM(1) AS N FROM `liblog` WHERE Time < '%s' GROUP BY BookId", $tm);
+  while ($a1 = db_fetch_object($sth)) {
+    $n1 = Sel("N FROM libstat WHERE Mes = '%s' AND BookId = %d", $a1->Mes, $a1->BookId);
+    if ($n1) db_query("UPDATE libstat SET N = ".($n1+$a1->N)." WHERE Mes = '%s' AND BookId = %d", $a1->Mes, $a1->BookId);
+    else db_query("INSERT INTO libstat (BookId, Mes, N) Values (%d, '%s', %d)", $a1->BookId, $a1->Mes, $a1->N);
+    db_query("DELETE FROM `liblog` WHERE Time < '%s' AND BookId = %d", $tm, $a1->BookId);
+  }
+  db_query('DELETE FROM libtopadvert WHERE Time + 333333 < NOW()'); 
+  libCheckLitres(1);
+}
+
+function librusec_update($node) {
+  $b = Sel("BookId FROM libbnode WHERE nid = %d", $node->nid);
+  if (!$b) $b = $node->title*1;
+  if ($b) libsettag("b$b");
+}
+
+function libListBlackGenre() {
+  Global $user;
+  if (!$user->uid) return '';
+  $sth = SELECT('* FROM libuserblackgenre JOIN libgenrelist USING(GenreId) WHERE UserId=%d ORDER BY GenreId', $user->uid);
+  while ($a1 = db_fetch_object($sth)) {
+    if (!$r) $r = 'Скрытые жанры: ';
+    else $r .= " &nbsp; ";
+    $r .= "<a href=/g/$a1->GenreId/show>$a1->GenreDesc</a>";
+  }
+  if ($r) $r = "<h6>$r</h6><br>";
+  return $r;
+}
+
+function libListBlackGG() {
+  Global $user;
+  if (!$user->uid) return ''; 
+  return Sel("/*bGG*/GROUP_CONCAT(CAST(GenreId AS CHAR) ORDER BY GenreId) FROM libuserblackgenre WHERE UserId = %d", $user->uid);
+}

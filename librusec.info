@@ -1,0 +1,8 @@
+; $Id$
+name = Librusec
+description = Library Module
+package = librusec
+version = 1.1
+core = 6.x
+dependencies[] = bwlist
+
